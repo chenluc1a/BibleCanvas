@@ -4,7 +4,9 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500;700&family=Nanum+Myeongjo:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700&family=Gowun+Dodum&display=swap');
 
-:root {
+/* ─── Dark Theme (default) ─────────────────────────── */
+:root,
+[data-theme='dark'] {
   --canvas-bg: #0A0A0F;
   --canvas-surface: #14141F;
   --canvas-border: #1E1E2E;
@@ -14,6 +16,35 @@
   --canvas-text: #E8E8F0;
   --glass-bg: rgba(20, 20, 31, 0.8);
   --glass-border: rgba(124, 106, 239, 0.15);
+  --glass-subtle-bg: rgba(20, 20, 31, 0.5);
+  --glass-subtle-border: rgba(124, 106, 239, 0.08);
+  --verse-hover-shadow: rgba(124, 106, 239, 0.15);
+  --glow-color: rgba(124, 106, 239, 0.3);
+  --glow-hover: rgba(124, 106, 239, 0.5);
+  --overlay-bg: rgba(0, 0, 0, 0.5);
+  --scrollbar-thumb: #1E1E2E;
+  --scrollbar-hover: #6B6B80;
+}
+
+/* ─── Light Theme ──────────────────────────────────── */
+[data-theme='light'] {
+  --canvas-bg: #F5F3F0;
+  --canvas-surface: #FFFFFF;
+  --canvas-border: #E2DFD9;
+  --canvas-accent: #6C5CE7;
+  --canvas-accent-light: #7C6AEF;
+  --canvas-muted: #8E8B85;
+  --canvas-text: #2C2A26;
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(108, 92, 231, 0.12);
+  --glass-subtle-bg: rgba(255, 255, 255, 0.6);
+  --glass-subtle-border: rgba(108, 92, 231, 0.06);
+  --verse-hover-shadow: rgba(108, 92, 231, 0.12);
+  --glow-color: rgba(108, 92, 231, 0.15);
+  --glow-hover: rgba(108, 92, 231, 0.25);
+  --overlay-bg: rgba(0, 0, 0, 0.3);
+  --scrollbar-thumb: #D5D2CC;
+  --scrollbar-hover: #B0ADA7;
 }
 
 * {
@@ -33,6 +64,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Custom Scrollbar */
@@ -45,12 +77,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--canvas-border);
+  background: var(--scrollbar-thumb);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--canvas-muted);
+  background: var(--scrollbar-hover);
 }
 
 /* Glassmorphism utility */
@@ -63,14 +95,14 @@ body {
   }
 
   .glass-subtle {
-    background: rgba(20, 20, 31, 0.5);
+    background: var(--glass-subtle-bg);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(124, 106, 239, 0.08);
+    border: 1px solid var(--glass-subtle-border);
   }
 
   .text-gradient {
-    background: linear-gradient(135deg, #7C6AEF 0%, #9B8CFB 50%, #C4B5FD 100%);
+    background: linear-gradient(135deg, var(--canvas-accent) 0%, var(--canvas-accent-light) 50%, #C4B5FD 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -88,6 +120,14 @@ body {
     pointer-events: none;
   }
 }
+
+/* ─── Theme-aware Tailwind overrides ─────────────── */
+[data-theme='light'] .bg-canvas-bg { background-color: var(--canvas-bg); }
+[data-theme='light'] .bg-canvas-surface { background-color: var(--canvas-surface); }
+[data-theme='light'] .text-canvas-text { color: var(--canvas-text); }
+[data-theme='light'] .text-canvas-muted { color: var(--canvas-muted); }
+[data-theme='light'] .border-canvas-border { border-color: var(--canvas-border); }
+[data-theme='light'] .text-canvas-accent-light { color: var(--canvas-accent-light); }
 
 /* Panel transitions */
 .panel-enter {
@@ -114,7 +154,7 @@ body {
   content: '';
   position: absolute;
   inset: -2px;
-  background: linear-gradient(135deg, rgba(124, 106, 239, 0.3) 0%, rgba(155, 140, 251, 0.1) 100%);
+  background: linear-gradient(135deg, var(--glow-color) 0%, rgba(155, 140, 251, 0.1) 100%);
   border-radius: inherit;
   z-index: -1;
   filter: blur(20px);
@@ -138,7 +178,7 @@ body {
 
 .verse-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(124, 106, 239, 0.15);
+  box-shadow: 0 8px 24px var(--verse-hover-shadow);
 }
 
 /* Preset theme card */
@@ -161,12 +201,12 @@ body {
   opacity: 1;
 }
 
-.preset-card.active {
-  ring: 2px;
-  ring-color: var(--canvas-accent);
-}
-
 /* Tab indicator animation */
 .tab-indicator {
   transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Theme toggle animation */
+.theme-toggle-icon {
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
 }

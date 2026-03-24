@@ -2,7 +2,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type {
-  BibleVerse, BackgroundType, OutputSize,
+  BibleVerse, BackgroundType, BackgroundFit, OutputSize,
   StyleState, CalendarState, CanvasState
 } from '@/types'
 import {
@@ -27,6 +27,7 @@ interface EditorStore extends CanvasState {
   setBackgroundUnsplash: (url: string, downloadUrl: string) => void
   setBackgroundUpload: (url: string) => void
   setBackgroundAI: (url: string) => void
+  setBackgroundFit: (fit: BackgroundFit) => void
 
   // Actions — Style
   updateStyle: (partial: Partial<StyleState>) => void
@@ -47,7 +48,7 @@ interface EditorStore extends CanvasState {
 
 const initialState: Omit<EditorStore,
   'setVerse' | 'setCustomText' | 'clearVerse' |
-  'setBackgroundPreset' | 'setBackgroundUnsplash' | 'setBackgroundUpload' | 'setBackgroundAI' |
+  'setBackgroundPreset' | 'setBackgroundUnsplash' | 'setBackgroundUpload' | 'setBackgroundAI' | 'setBackgroundFit' |
   'updateStyle' | 'resetStyle' | 'updateCalendar' |
   'setOutputSize' | 'setActivePanel' | 'setExporting' | 'setShareUrl' | 'resetAll'
 > = {
@@ -55,6 +56,7 @@ const initialState: Omit<EditorStore,
   customText: '',
   backgroundType: 'preset',
   backgroundUrl: PRESET_THEMES[0].backgroundUrl,
+  backgroundFit: 'cover',
   style: DEFAULT_STYLE,
   calendar: DEFAULT_CALENDAR,
   outputSize: 'story',
@@ -110,6 +112,8 @@ export const useEditorStore = create<EditorStore>()(
         backgroundUrl: url,
       }),
 
+      setBackgroundFit: (fit) => set({ backgroundFit: fit }),
+
       updateStyle: (partial) => set(state => ({
         style: { ...state.style, ...partial }
       })),
@@ -137,6 +141,7 @@ export const useEditorStore = create<EditorStore>()(
         customText: state.customText,
         backgroundType: state.backgroundType,
         backgroundUrl: state.backgroundUrl,
+        backgroundFit: state.backgroundFit,
         style: state.style,
         calendar: state.calendar,
         outputSize: state.outputSize,

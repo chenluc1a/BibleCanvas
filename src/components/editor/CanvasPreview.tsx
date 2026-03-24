@@ -3,13 +3,25 @@
 import { useEditorStore } from '@/store/editor'
 import { OUTPUT_SIZES } from '@/lib/constants'
 import { formatVerseRef } from '@/lib/bible-data'
+import type { BackgroundFit } from '@/types'
+
+function getObjectFitStyle(fit: BackgroundFit): React.CSSProperties {
+  switch (fit) {
+    case 'cover':    return { objectFit: 'cover', width: '100%', height: '100%' }
+    case 'contain':  return { objectFit: 'contain', width: '100%', height: '100%' }
+    case 'fill':     return { objectFit: 'fill', width: '100%', height: '100%' }
+    case 'fit-width':  return { objectFit: 'cover', width: '100%', height: 'auto', minHeight: '100%' }
+    case 'fit-height': return { objectFit: 'cover', width: 'auto', height: '100%', minWidth: '100%' }
+    default:         return { objectFit: 'cover', width: '100%', height: '100%' }
+  }
+}
 
 export default function CanvasPreview() {
   const {
     verse,
     customText,
     backgroundUrl,
-    backgroundType,
+    backgroundFit,
     style,
     calendar,
     outputSize,
@@ -20,6 +32,9 @@ export default function CanvasPreview() {
 
   const displayText = verse ? verse.text : customText
   const referenceText = verse ? formatVerseRef(verse) : ''
+
+  const isGradient = backgroundUrl.startsWith('gradient:')
+  const gradientValue = isGradient ? backgroundUrl.slice('gradient:'.length) : ''
 
   // Generate calendar data
   const now = new Date()
@@ -49,12 +64,14 @@ export default function CanvasPreview() {
     ? `0 2px ${style.shadowBlur}px rgba(0,0,0,0.7), 0 0 ${style.shadowBlur * 2}px rgba(0,0,0,0.3)`
     : 'none'
 
+  const fitStyle = getObjectFitStyle(backgroundFit)
+
   return (
     <div className="flex flex-col items-center gap-4">
       {/* Size label */}
-      <div className="flex items-center gap-2 text-xs text-canvas-muted">
+      <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--canvas-muted)' }}>
         <span>{sizeSpec.label}</span>
-        <span className="text-canvas-border">•</span>
+        <span style={{ color: 'var(--canvas-border)' }}>•</span>
         <span>{sizeSpec.width} × {sizeSpec.height}</span>
       </div>
 
@@ -69,19 +86,28 @@ export default function CanvasPreview() {
         id="canvas-preview"
       >
         {/* Background */}
-        <div className="absolute inset-0 bg-canvas-surface">
-          {backgroundUrl ? (
-            <img
-              src={backgroundUrl}
-              alt="배경"
-              className="w-full h-full object-cover"
-              crossOrigin="anonymous"
+        <div className="absolute inset-0" style={{ backgroundColor: 'var(--canvas-surface)' }}>
+          {isGradient ? (
+            <div
+              className="w-full h-full"
+              style={{ background: gradientValue }}
             />
+          ) : backgroundUrl ? (
+            <div className="w-full h-full flex items-center justify-center overflow-hidden"
+              style={{ backgroundColor: backgroundFit === 'contain' ? '#000000' : undefined }}
+            >
+              <img
+                src={backgroundUrl}
+                alt="배경"
+                style={fitStyle}
+                crossOrigin="anonymous"
+              />
+            </div>
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900" />
           )}
           {/* Dark overlay for text readability */}
-          <div className="absolute inset-0 bg-black/20" />
+          {!isGradient && <div className="absolute inset-0 bg-black/20" />}
         </div>
 
         {/* Text overlay */}
