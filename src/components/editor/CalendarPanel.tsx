@@ -1,17 +1,35 @@
 'use client'
 
 import { useEditorStore } from '@/store/editor'
-import type { CalendarPosition } from '@/types'
+import type { CalendarPosition, CalendarSize } from '@/types'
+
+// 3×3 위치 그리드 정의
+const POSITION_GRID: { value: CalendarPosition; label: string }[][] = [
+  [
+    { value: 'top-left',    label: '↖' },
+    { value: 'top-center',  label: '↑' },
+    { value: 'top-right',   label: '↗' },
+  ],
+  [
+    { value: 'middle-left',  label: '←' },
+    { value: 'center',       label: '·' },
+    { value: 'middle-right', label: '→' },
+  ],
+  [
+    { value: 'bottom-left',   label: '↙' },
+    { value: 'bottom-center', label: '↓' },
+    { value: 'bottom-right',  label: '↘' },
+  ],
+]
+
+const SIZE_OPTIONS: { value: CalendarSize; label: string }[] = [
+  { value: 'sm', label: '소' },
+  { value: 'md', label: '중' },
+  { value: 'lg', label: '대' },
+]
 
 export default function CalendarPanel() {
   const { calendar, updateCalendar } = useEditorStore()
-
-  const positions: { value: CalendarPosition; label: string }[] = [
-    { value: 'top-left', label: '좌상' },
-    { value: 'top-right', label: '우상' },
-    { value: 'bottom-left', label: '좌하' },
-    { value: 'bottom-right', label: '우하' },
-  ]
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -43,18 +61,50 @@ export default function CalendarPanel() {
 
       {calendar.show && (
         <div className="space-y-4 panel-enter">
-          {/* Position */}
+
+          {/* Position — 3×3 grid */}
           <div className="space-y-2">
             <label className="text-[11px] text-canvas-muted uppercase tracking-wider">
               위치
             </label>
-            <div className="grid grid-cols-2 gap-2">
-              {positions.map(({ value, label }) => (
+            {/* 미니 캔버스 위치 선택기 */}
+            <div
+              className="rounded-xl border border-canvas-border/50 p-2 aspect-video grid grid-rows-3 gap-1"
+              style={{ backgroundColor: 'var(--canvas-surface)' }}
+            >
+              {POSITION_GRID.map((row, ri) => (
+                <div key={ri} className="grid grid-cols-3 gap-1 flex-1">
+                  {row.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      onClick={() => updateCalendar({ position: value })}
+                      title={value}
+                      className={`rounded-lg text-sm font-bold transition-all duration-200 flex items-center justify-center ${
+                        calendar.position === value
+                          ? 'bg-canvas-accent/25 text-canvas-accent-light border border-canvas-accent/50'
+                          : 'text-canvas-muted hover:bg-canvas-border/40 border border-transparent'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Size */}
+          <div className="space-y-2">
+            <label className="text-[11px] text-canvas-muted uppercase tracking-wider">
+              크기
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {SIZE_OPTIONS.map(({ value, label }) => (
                 <button
                   key={value}
-                  onClick={() => updateCalendar({ position: value })}
-                  className={`py-2 px-3 rounded-lg text-xs border transition-all duration-200 ${
-                    calendar.position === value
+                  onClick={() => updateCalendar({ size: value })}
+                  className={`py-1.5 rounded-lg text-xs border transition-all duration-200 ${
+                    calendar.size === value
                       ? 'bg-canvas-accent/15 border-canvas-accent/40 text-canvas-accent-light'
                       : 'border-canvas-border text-canvas-muted hover:border-canvas-accent/20'
                   }`}
@@ -65,11 +115,11 @@ export default function CalendarPanel() {
             </div>
           </div>
 
-          {/* Opacity */}
+          {/* Opacity — 배경 투명도 (텍스트 제외) */}
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <label className="text-[11px] text-canvas-muted uppercase tracking-wider">
-                투명도
+                배경 투명도
               </label>
               <span className="text-[11px] text-canvas-accent-light">
                 {Math.round(calendar.opacity * 100)}%
@@ -77,13 +127,14 @@ export default function CalendarPanel() {
             </div>
             <input
               type="range"
-              min="0.2"
+              min="0.1"
               max="1"
               step="0.05"
               value={calendar.opacity}
               onChange={(e) => updateCalendar({ opacity: Number(e.target.value) })}
               className="w-full h-1.5 bg-canvas-border rounded-full appearance-none cursor-pointer accent-canvas-accent"
             />
+            <p className="text-[10px] text-canvas-muted">글씨는 항상 선명하게 유지됩니다</p>
           </div>
 
           {/* Today highlight */}

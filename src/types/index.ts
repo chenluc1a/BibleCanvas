@@ -7,6 +7,7 @@ export interface BibleVerse {
   chapter: number
   verse: number
   text: string
+  textEn?: string            // 영어 번역 (NIV 기준)
   translation: 'KRV' | 'NKRV' | 'NLT'  // 개역한글 | 개역개정 | 새번역
   tags: string[]
   season?: ChurchSeason
@@ -60,7 +61,14 @@ export interface FontOption {
 
 export type TextAlign = 'left' | 'center' | 'right'
 
-export type CalendarPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+export type CalendarPosition =
+  | 'top-left'    | 'top-center'    | 'top-right'
+  | 'middle-left' | 'center'        | 'middle-right'
+  | 'bottom-left' | 'bottom-center' | 'bottom-right'
+
+export type CalendarSize = 'sm' | 'md' | 'lg'
+
+export type VerseLang = 'ko' | 'en'
 
 export interface StyleState {
   fontFamily: string
@@ -79,11 +87,13 @@ export interface CalendarState {
   showToday: boolean
   showSunday: boolean
   opacity: number
+  size: CalendarSize
 }
 
 export interface CanvasState {
   verse: BibleVerse | null
   customText: string
+  verseLang: VerseLang
   backgroundType: BackgroundType
   backgroundUrl: string
   backgroundFit: BackgroundFit

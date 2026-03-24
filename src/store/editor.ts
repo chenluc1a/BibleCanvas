@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type {
   BibleVerse, BackgroundType, BackgroundFit, OutputSize,
-  StyleState, CalendarState, CanvasState
+  StyleState, CalendarState, CanvasState, VerseLang
 } from '@/types'
 import {
   DEFAULT_STYLE, DEFAULT_CALENDAR,
@@ -21,6 +21,7 @@ interface EditorStore extends CanvasState {
   setVerse: (verse: BibleVerse) => void
   setCustomText: (text: string) => void
   clearVerse: () => void
+  setVerseLang: (lang: VerseLang) => void
 
   // Actions — Background
   setBackgroundPreset: (id: string) => void
@@ -47,13 +48,14 @@ interface EditorStore extends CanvasState {
 }
 
 const initialState: Omit<EditorStore,
-  'setVerse' | 'setCustomText' | 'clearVerse' |
+  'setVerse' | 'setCustomText' | 'clearVerse' | 'setVerseLang' |
   'setBackgroundPreset' | 'setBackgroundUnsplash' | 'setBackgroundUpload' | 'setBackgroundAI' | 'setBackgroundFit' |
   'updateStyle' | 'resetStyle' | 'updateCalendar' |
   'setOutputSize' | 'setActivePanel' | 'setExporting' | 'setShareUrl' | 'resetAll'
 > = {
   verse: null,
   customText: '',
+  verseLang: 'ko',
   backgroundType: 'preset',
   backgroundUrl: PRESET_THEMES[0].backgroundUrl,
   backgroundFit: 'cover',
@@ -86,6 +88,8 @@ export const useEditorStore = create<EditorStore>()(
       setCustomText: (text) => set({ customText: text, verse: null }),
 
       clearVerse: () => set({ verse: null, customText: '' }),
+
+      setVerseLang: (lang) => set({ verseLang: lang }),
 
       setBackgroundPreset: (id) => {
         const theme = PRESET_THEMES.find(t => t.id === id)
@@ -139,6 +143,7 @@ export const useEditorStore = create<EditorStore>()(
       partialize: (state) => ({
         verse: state.verse,
         customText: state.customText,
+        verseLang: state.verseLang,
         backgroundType: state.backgroundType,
         backgroundUrl: state.backgroundUrl,
         backgroundFit: state.backgroundFit,

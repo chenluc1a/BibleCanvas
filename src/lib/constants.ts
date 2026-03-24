@@ -166,6 +166,7 @@ export const DEFAULT_CALENDAR = {
   showToday: true,
   showSunday: true,
   opacity: 0.85,
+  size: 'md' as const,
 }
 
 export const APP_NAME = 'Bible Canvas'

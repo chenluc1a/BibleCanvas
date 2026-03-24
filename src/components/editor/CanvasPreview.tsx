@@ -3,7 +3,7 @@
 import { useEditorStore } from '@/store/editor'
 import { OUTPUT_SIZES } from '@/lib/constants'
 import { formatVerseRef } from '@/lib/bible-data'
-import type { BackgroundFit } from '@/types'
+import type { BackgroundFit, CalendarPosition, CalendarSize } from '@/types'
 
 function getObjectFitStyle(fit: BackgroundFit): React.CSSProperties {
   switch (fit) {
@@ -16,10 +16,34 @@ function getObjectFitStyle(fit: BackgroundFit): React.CSSProperties {
   }
 }
 
+function getCalendarPositionClass(pos: CalendarPosition): string {
+  const map: Record<CalendarPosition, string> = {
+    'top-left':      'top-3 left-3',
+    'top-center':    'top-3 left-1/2 -translate-x-1/2',
+    'top-right':     'top-3 right-3',
+    'middle-left':   'top-1/2 left-3 -translate-y-1/2',
+    'center':        'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
+    'middle-right':  'top-1/2 right-3 -translate-y-1/2',
+    'bottom-left':   'bottom-3 left-3',
+    'bottom-center': 'bottom-3 left-1/2 -translate-x-1/2',
+    'bottom-right':  'bottom-3 right-3',
+  }
+  return map[pos] ?? 'top-3 right-3'
+}
+
+function getCalendarSizeClasses(size: CalendarSize): { wrapper: string; text: string; header: string } {
+  switch (size) {
+    case 'sm': return { wrapper: 'min-w-[90px] p-1.5', text: 'text-[6px] sm:text-[8px]',  header: 'text-[7px] sm:text-[9px]' }
+    case 'lg': return { wrapper: 'min-w-[160px] p-3',  text: 'text-[9px] sm:text-[12px]', header: 'text-[10px] sm:text-[13px]' }
+    default:   return { wrapper: 'min-w-[120px] p-2',  text: 'text-[8px] sm:text-[10px]', header: 'text-[9px] sm:text-[11px]' }
+  }
+}
+
 export default function CanvasPreview() {
   const {
     verse,
     customText,
+    verseLang,
     backgroundUrl,
     backgroundFit,
     style,
@@ -30,8 +54,11 @@ export default function CanvasPreview() {
   const sizeSpec = OUTPUT_SIZES[outputSize]
   const aspectRatio = sizeSpec.width / sizeSpec.height
 
-  const displayText = verse ? verse.text : customText
-  const referenceText = verse ? formatVerseRef(verse) : ''
+  // 언어에 따라 텍스트 선택
+  const displayText = verse
+    ? (verseLang === 'en' && verse.textEn ? verse.textEn : verse.text)
+    : customText
+  const referenceText = verse ? formatVerseRef(verse, verseLang) : ''
 
   const isGradient = backgroundUrl.startsWith('gradient:')
   const gradientValue = isGradient ? backgroundUrl.slice('gradient:'.length) : ''
@@ -52,12 +79,11 @@ export default function CanvasPreview() {
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ]
 
-  const calendarPositionClass = {
-    'top-left': 'top-3 left-3',
-    'top-right': 'top-3 right-3',
-    'bottom-left': 'bottom-3 left-3',
-    'bottom-right': 'bottom-3 right-3',
-  }[calendar.position]
+  const calendarPositionClass = getCalendarPositionClass(calendar.position)
+  const calendarSize = getCalendarSizeClasses(calendar.size)
+
+  // 배경 투명도만 적용 (rgba) — 텍스트는 항상 불투명
+  const calendarBgColor = `rgba(0,0,0,${(0.45 * calendar.opacity).toFixed(2)})`
 
   // Text shadow style
   const textShadowStyle = style.textShadow
@@ -146,22 +172,24 @@ export default function CanvasPreview() {
           )}
         </div>
 
-        {/* Calendar overlay */}
+        {/* Calendar overlay — 배경 투명도만 적용, 텍스트는 불투명 유지 */}
         {calendar.show && (
           <div
             className={`absolute ${calendarPositionClass} transition-all duration-300`}
-            style={{ opacity: calendar.opacity }}
           >
-            <div className="bg-black/40 backdrop-blur-md rounded-lg p-2 text-white text-[8px] sm:text-[10px] min-w-[120px] sm:min-w-[150px]">
-              <div className="text-center font-medium mb-1 text-[10px] sm:text-xs">
+            <div
+              className={`backdrop-blur-md rounded-lg text-white ${calendarSize.wrapper}`}
+              style={{ backgroundColor: calendarBgColor }}
+            >
+              <div className={`text-center font-medium mb-1 ${calendarSize.header}`}>
                 {year} {monthNames[month]}
               </div>
               <div className="grid grid-cols-7 gap-px">
                 {dayNames.map((d, i) => (
                   <div
                     key={d}
-                    className={`text-center py-0.5 font-medium ${
-                      i === 0 && calendar.showSunday ? 'text-red-300' : 'text-white/60'
+                    className={`text-center py-0.5 font-medium ${calendarSize.text} ${
+                      i === 0 && calendar.showSunday ? 'text-red-300' : 'text-white/70'
                     }`}
                   >
                     {d}
@@ -170,9 +198,9 @@ export default function CanvasPreview() {
                 {calendarDays.map((day, i) => (
                   <div
                     key={i}
-                    className={`text-center py-0.5 rounded ${
+                    className={`text-center py-0.5 rounded ${calendarSize.text} ${
                       day === today && calendar.showToday
-                        ? 'bg-white/30 font-bold'
+                        ? 'bg-white/30 font-bold text-white'
                         : ''
                     } ${
                       day && i % 7 === 0 && calendar.showSunday

@@ -9,7 +9,7 @@ import type { BibleVerse } from '@/types'
 const TAGS = ['사랑', '위로', '소망', '믿음', '감사', '용기', '구원', '능력']
 
 export default function VersePanel() {
-  const { verse, customText, setVerse, setCustomText, clearVerse } = useEditorStore()
+  const { verse, customText, verseLang, setVerse, setCustomText, clearVerse, setVerseLang } = useEditorStore()
   const [mode, setMode] = useState<'recommend' | 'search' | 'custom'>('recommend')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
@@ -175,6 +175,28 @@ export default function VersePanel() {
               </button>
             ))
           )}
+        </div>
+      )}
+
+      {/* Language toggle — 구절 선택 시 영어/한글 전환 */}
+      {verse && verse.textEn && (
+        <div className="flex items-center justify-between p-2 rounded-xl bg-canvas-surface/60 border border-canvas-border/40">
+          <span className="text-[11px] text-canvas-muted">말씀 언어</span>
+          <div className="flex gap-1 p-0.5 rounded-lg bg-canvas-border/30">
+            {(['ko', 'en'] as const).map((lang) => (
+              <button
+                key={lang}
+                onClick={() => setVerseLang(lang)}
+                className={`px-2.5 py-1 text-[11px] rounded-md font-medium transition-all duration-200 ${
+                  verseLang === lang
+                    ? 'bg-canvas-accent/20 text-canvas-accent-light'
+                    : 'text-canvas-muted hover:text-canvas-text'
+                }`}
+              >
+                {lang === 'ko' ? '한국어' : 'English'}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

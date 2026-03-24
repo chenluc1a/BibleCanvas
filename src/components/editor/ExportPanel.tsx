@@ -5,20 +5,82 @@ import { OUTPUT_SIZES } from '@/lib/constants'
 import type { OutputSize } from '@/types'
 
 const SIZE_OPTIONS: { key: OutputSize; emoji: string }[] = [
-  { key: 'story', emoji: '📱' },
-  { key: 'feed', emoji: '📸' },
-  { key: 'pc', emoji: '🖥️' },
-  { key: 'mobile', emoji: '📲' },
-  { key: 'kakao', emoji: '💬' },
+  { key: 'story',   emoji: '📱' },
+  { key: 'feed',    emoji: '📸' },
+  { key: 'pc',      emoji: '🖥️' },
+  { key: 'mobile',  emoji: '📲' },
+  { key: 'kakao',   emoji: '💬' },
   { key: 'youtube', emoji: '▶️' },
 ]
 
+/** 출력 비율을 시각적으로 표현하는 미니 미리보기 박스 */
+function AspectBox({ width, height }: { width: number; height: number }) {
+  const ratio = width / height
+  // 최대 너비 32px 기준으로 높이 계산 (비율 유지)
+  const boxW = ratio >= 1 ? 32 : Math.round(32 * ratio)
+  const boxH = ratio >= 1 ? Math.round(32 / ratio) : 32
+  return (
+    <div
+      className="rounded border border-canvas-border/60 bg-canvas-border/20 flex-shrink-0"
+      style={{ width: boxW, height: boxH }}
+    />
+  )
+}
+
 export default function ExportPanel() {
-  const { outputSize, setOutputSize, isExporting } = useEditorStore()
+  const { outputSize, setOutputSize, isExporting, setExporting, verse } = useEditorStore()
 
   const handleDownload = async () => {
-    // Will be wired to useExport hook
-    alert('다운로드 기능은 Sprint 3에서 구현됩니다.')
+    const element = document.getElementById('canvas-preview')
+    if (!element) {
+      alert('캔버스를 찾을 수 없습니다.')
+      return
+    }
+
+    setExporting(true)
+    try {
+      const { default: html2canvas } = await import('html2canvas')
+      const spec = OUTPUT_SIZES[outputSize]
+
+      const previewW = element.offsetWidth
+      const previewH = element.offsetHeight
+      const scale = spec.width / previewW
+
+      const canvas = await html2canvas(element, {
+        width: previewW,
+        height: previewH,
+        scale,
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: null,
+        logging: false,
+      })
+
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(
+          (b) => (b ? resolve(b) : reject(new Error('Blob 생성 실패'))),
+          'image/png',
+          1.0
+        )
+      })
+
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      const verseRef = verse
+        ? `${verse.book}${verse.chapter}_${verse.verse}`
+        : 'custom'
+      a.href = url
+      a.download = `bible-canvas_${verseRef}_${outputSize}_${spec.width}x${spec.height}.png`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('[ExportPanel] PNG 내보내기 실패:', err)
+      alert('다운로드 중 오류가 발생했습니다. 다시 시도해주세요.')
+    } finally {
+      setExporting(false)
+    }
   }
 
   return (
@@ -44,22 +106,31 @@ export default function ExportPanel() {
               <button
                 key={key}
                 onClick={() => setOutputSize(key)}
-                className={`p-3 rounded-xl border text-left transition-all duration-200 ${
+                className={`p-2.5 rounded-xl border text-left transition-all duration-200 ${
                   outputSize === key
                     ? 'bg-canvas-accent/10 border-canvas-accent/40'
                     : 'border-canvas-border hover:border-canvas-accent/20 bg-canvas-surface/30'
                 }`}
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm">{emoji}</span>
-                  <span className={`text-xs font-medium ${
-                    outputSize === key ? 'text-canvas-accent-light' : 'text-canvas-text'
-                  }`}>
-                    {spec.label}
-                  </span>
+                <div className="flex items-center gap-2 mb-1.5">
+                  {/* 시각적 비율 박스 */}
+                  <AspectBox width={spec.width} height={spec.height} />
+                  <div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs">{emoji}</span>
+                      <span className={`text-xs font-medium ${
+                        outputSize === key ? 'text-canvas-accent-light' : 'text-canvas-text'
+                      }`}>
+                        {spec.label}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-canvas-muted mt-0.5">
+                      {spec.width}×{spec.height}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-[10px] text-canvas-muted">
-                  {spec.width}×{spec.height} • {spec.ratio}
+                <p className="text-[9px] text-canvas-muted/70">
+                  {spec.ratio} • {spec.platform}
                 </p>
               </button>
             )
@@ -92,7 +163,7 @@ export default function ExportPanel() {
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
-            PNG 다운로드
+            PNG 다운로드 ({OUTPUT_SIZES[outputSize].width}×{OUTPUT_SIZES[outputSize].height})
           </>
         )}
       </button>
@@ -102,7 +173,8 @@ export default function ExportPanel() {
         <p className="text-[11px] text-canvas-muted leading-relaxed">
           💡 <strong className="text-canvas-text/80">팁</strong>: 인스타그램 스토리에는{' '}
           <span className="text-canvas-accent-light">스토리 (9:16)</span>, 카카오톡 프로필에는{' '}
-          <span className="text-canvas-accent-light">카카오 프로필 (1:1)</span> 사이즈를 추천합니다.
+          <span className="text-canvas-accent-light">카카오 프로필 (1:1)</span>, PC 바탕화면에는{' '}
+          <span className="text-canvas-accent-light">PC (1920×1080)</span> 사이즈를 추천합니다.
         </p>
       </div>
     </div>
