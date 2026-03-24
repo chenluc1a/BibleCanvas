@@ -88,6 +88,58 @@ export const PRESET_THEMES: PresetTheme[] = [
   },
 ]
 
+// 기본 배경화면 (말씀 없이 사용 가능한 단색/그라데이션)
+export const PLAIN_PRESETS: PresetTheme[] = [
+  {
+    id: 'solid-dark',
+    label: '미드나잇',
+    thumbnail: '',
+    backgroundUrl: '',
+    defaultTextColor: '#E8E8F0',
+    gradient: 'linear-gradient(135deg, #0A0A0F 0%, #1A1A2E 50%, #16213E 100%)',
+  },
+  {
+    id: 'warm-beige',
+    label: '웜 베이지',
+    thumbnail: '',
+    backgroundUrl: '',
+    defaultTextColor: '#3A2E24',
+    gradient: 'linear-gradient(135deg, #FAF3E8 0%, #F0E6D4 50%, #E8DCC8 100%)',
+  },
+  {
+    id: 'ocean-blue',
+    label: '오션 블루',
+    thumbnail: '',
+    backgroundUrl: '',
+    defaultTextColor: '#F0F8FF',
+    gradient: 'linear-gradient(180deg, #0C2340 0%, #1A4B7A 40%, #2E86AB 70%, #5DB7DE 100%)',
+  },
+  {
+    id: 'sunset-gold',
+    label: '선셋 골드',
+    thumbnail: '',
+    backgroundUrl: '',
+    defaultTextColor: '#FFFFFF',
+    gradient: 'linear-gradient(180deg, #1A0A2E 0%, #5C2D82 30%, #D4587A 60%, #F7941D 90%, #FFD700 100%)',
+  },
+  {
+    id: 'forest-green',
+    label: '포레스트',
+    thumbnail: '',
+    backgroundUrl: '',
+    defaultTextColor: '#E8F0EC',
+    gradient: 'linear-gradient(180deg, #0D1B0E 0%, #1A3A1C 30%, #2E5A30 60%, #4A7C4C 100%)',
+  },
+  {
+    id: 'soft-pink',
+    label: '소프트 핑크',
+    thumbnail: '',
+    backgroundUrl: '',
+    defaultTextColor: '#4A2040',
+    gradient: 'linear-gradient(135deg, #FFF0F5 0%, #FFD6E7 30%, #FFC0CB 60%, #FFB3D9 100%)',
+  },
+]
+
 export const UNSPLASH_CATEGORIES = [
   { id: 'nature',    label: '자연',    query: 'peaceful nature landscape' },
   { id: 'sky',       label: '하늘',    query: 'beautiful sky clouds sunrise' },

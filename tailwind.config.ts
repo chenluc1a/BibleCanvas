@@ -16,13 +16,13 @@ const config: Config = {
       },
       colors: {
         canvas: {
-          bg: '#0A0A0F',
-          surface: '#14141F',
-          border: '#1E1E2E',
-          accent: '#7C6AEF',
-          'accent-light': '#9B8CFB',
-          muted: '#6B6B80',
-          text: '#E8E8F0',
+          bg: 'var(--canvas-bg)',
+          surface: 'var(--canvas-surface)',
+          border: 'var(--canvas-border)',
+          accent: 'var(--canvas-accent)',
+          'accent-light': 'var(--canvas-accent-light)',
+          muted: 'var(--canvas-muted)',
+          text: 'var(--canvas-text)',
         },
       },
       animation: {

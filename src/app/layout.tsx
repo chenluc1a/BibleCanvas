@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { ThemeProvider } from '@/components/ThemeProvider'
 
 export const metadata: Metadata = {
   title: 'Bible Canvas — Your Word. Your Canvas.',
@@ -19,9 +20,11 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="ko">
-      <body className="min-h-screen bg-canvas-bg text-canvas-text antialiased">
-        {children}
+    <html lang="ko" suppressHydrationWarning>
+      <body className="min-h-screen antialiased" style={{ backgroundColor: 'var(--canvas-bg)', color: 'var(--canvas-text)' }}>
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   )

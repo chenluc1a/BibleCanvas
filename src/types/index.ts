@@ -20,6 +20,8 @@ export type ChurchSeason =
 
 export type BackgroundType = 'preset' | 'unsplash' | 'upload' | 'ai'
 
+export type BackgroundFit = 'cover' | 'contain' | 'fill' | 'fit-width' | 'fit-height'
+
 export type OutputSize = 'story' | 'feed' | 'pc' | 'mobile' | 'kakao' | 'youtube'
 
 export interface OutputSizeSpec {
@@ -37,6 +39,7 @@ export interface PresetTheme {
   backgroundUrl: string
   defaultTextColor: string
   season?: ChurchSeason
+  gradient?: string
 }
 
 export interface UnsplashImage {
@@ -83,6 +86,7 @@ export interface CanvasState {
   customText: string
   backgroundType: BackgroundType
   backgroundUrl: string
+  backgroundFit: BackgroundFit
   style: StyleState
   calendar: CalendarState
   outputSize: OutputSize
