@@ -1,0 +1,100 @@
+# ─────────────────────────────────────────────────────
+# CD — Vercel 배포 파이프라인
+# ─────────────────────────────────────────────────────
+# 트리거: main 브랜치 push 시 프로덕션 배포
+#         dev 브랜치 push 시 프리뷰 배포
+#
+# 필수 GitHub Secrets:
+#   VERCEL_TOKEN      — Vercel API 토큰
+#   VERCEL_ORG_ID     — Vercel 조직 ID
+#   VERCEL_PROJECT_ID — Vercel 프로젝트 ID
+
+name: 🚀 Deploy
+
+on:
+  push:
+    branches: [main, dev]
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  # ─── 프리뷰 배포 (dev 브랜치) ──────────────────────
+  deploy-preview:
+    name: 🔮 Preview Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.ref == 'refs/heads/dev'
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 📦 Install Vercel CLI
+        run: npm i -g vercel@latest
+
+      - name: 🔗 Pull Vercel Environment
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: 🏗️ Build
+        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: 🚀 Deploy Preview
+        id: deploy
+        run: |
+          URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          echo "preview_url=$URL" >> $GITHUB_OUTPUT
+
+      - name: 💬 Comment PR with Preview URL
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🔮 **Preview 배포 완료!**\n\n🔗 ${process.env.PREVIEW_URL}`
+            })
+        env:
+          PREVIEW_URL: ${{ steps.deploy.outputs.preview_url }}
+
+  # ─── 프로덕션 배포 (main 브랜치) ───────────────────
+  deploy-production:
+    name: 🌐 Production Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 📦 Install Vercel CLI
+        run: npm i -g vercel@latest
+
+      - name: 🔗 Pull Vercel Environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: 🏗️ Build
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: 🚀 Deploy Production
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}

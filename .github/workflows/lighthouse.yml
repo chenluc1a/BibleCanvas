@@ -1,0 +1,43 @@
+# ─────────────────────────────────────────────────────
+# Lighthouse — 성능 검증 파이프라인
+# ─────────────────────────────────────────────────────
+# 트리거: main 브랜치 PR 시 Lighthouse CI 실행
+# 목표: 모바일 성능 90+ (배포 전 체크리스트 항목)
+
+name: 🔦 Lighthouse
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  lighthouse:
+    name: 📊 Performance Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🏗️ Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_BASE_URL: https://biblecanvas.kr
+          NEXT_PUBLIC_KAKAO_JS_KEY: dummy_key_for_build
+
+      - name: 🔦 Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          configPath: ./lighthouserc.json
+          uploadArtifacts: true
+          temporaryPublicStorage: true
