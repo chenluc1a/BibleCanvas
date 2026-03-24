@@ -1,0 +1,172 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500;700&family=Nanum+Myeongjo:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700&family=Gowun+Dodum&display=swap');
+
+:root {
+  --canvas-bg: #0A0A0F;
+  --canvas-surface: #14141F;
+  --canvas-border: #1E1E2E;
+  --canvas-accent: #7C6AEF;
+  --canvas-accent-light: #9B8CFB;
+  --canvas-muted: #6B6B80;
+  --canvas-text: #E8E8F0;
+  --glass-bg: rgba(20, 20, 31, 0.8);
+  --glass-border: rgba(124, 106, 239, 0.15);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--canvas-bg);
+  color: var(--canvas-text);
+  font-family: 'Noto Sans KR', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--canvas-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--canvas-muted);
+}
+
+/* Glassmorphism utility */
+@layer utilities {
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+  }
+
+  .glass-subtle {
+    background: rgba(20, 20, 31, 0.5);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(124, 106, 239, 0.08);
+  }
+
+  .text-gradient {
+    background: linear-gradient(135deg, #7C6AEF 0%, #9B8CFB 50%, #C4B5FD 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .bg-noise {
+    position: relative;
+  }
+
+  .bg-noise::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+  }
+}
+
+/* Panel transitions */
+.panel-enter {
+  animation: slideUp 0.4s ease-out;
+}
+
+@keyframes slideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Floating glow effect for canvas preview */
+.canvas-glow {
+  position: relative;
+}
+
+.canvas-glow::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(135deg, rgba(124, 106, 239, 0.3) 0%, rgba(155, 140, 251, 0.1) 100%);
+  border-radius: inherit;
+  z-index: -1;
+  filter: blur(20px);
+  opacity: 0.5;
+  transition: opacity 0.3s;
+}
+
+.canvas-glow:hover::after {
+  opacity: 0.8;
+}
+
+/* Bottom sheet mobile */
+.bottom-sheet {
+  transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Verse card hover */
+.verse-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.verse-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(124, 106, 239, 0.15);
+}
+
+/* Preset theme card */
+.preset-card {
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.preset-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.preset-card:hover::after {
+  opacity: 1;
+}
+
+.preset-card.active {
+  ring: 2px;
+  ring-color: var(--canvas-accent);
+}
+
+/* Tab indicator animation */
+.tab-indicator {
+  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
