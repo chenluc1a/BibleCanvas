@@ -42,9 +42,10 @@ export default function ExportPanel() {
       const { default: html2canvas } = await import('html2canvas')
       const spec = OUTPUT_SIZES[outputSize]
 
-      const previewW = element.offsetWidth
-      const previewH = element.offsetHeight
-      const scale = spec.width / previewW
+      const previewW = element.offsetWidth || 400
+      const previewH = element.offsetHeight || 400
+      // scale이 Infinity / NaN이 되지 않도록 방어
+      const scale = previewW > 0 ? Math.min(spec.width / previewW, 8) : 2
 
       const canvas = await html2canvas(element, {
         width: previewW,
@@ -54,6 +55,22 @@ export default function ExportPanel() {
         allowTaint: false,
         backgroundColor: null,
         logging: false,
+        // html2canvas는 backdrop-filter 미지원 → onclone에서 제거
+        onclone: (clonedDoc) => {
+          // canvas-glow 글로우 효과 제거 (blur pseudo-element)
+          const preview = clonedDoc.getElementById('canvas-preview')
+          if (preview) preview.classList.remove('canvas-glow')
+
+          // backdrop-blur 클래스 전체 제거 후 background 단색으로 대체
+          clonedDoc.querySelectorAll<HTMLElement>('[class*="backdrop-blur"]').forEach((el) => {
+            el.style.backdropFilter = 'none'
+            ;(el.style as CSSStyleDeclaration & { webkitBackdropFilter?: string }).webkitBackdropFilter = 'none'
+            // 배경색이 없으면 반투명 검정으로 보완
+            if (!el.style.backgroundColor) {
+              el.style.backgroundColor = 'rgba(0,0,0,0.45)'
+            }
+          })
+        },
       })
 
       const blob = await new Promise<Blob>((resolve, reject) => {
