@@ -119,7 +119,7 @@ export default function CalendarPanel() {
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <label className="text-[11px] text-canvas-muted uppercase tracking-wider">
-                배경 투명도
+                배경 불투명도
               </label>
               <span className="text-[11px] text-canvas-accent-light">
                 {Math.round(calendar.opacity * 100)}%
@@ -127,14 +127,14 @@ export default function CalendarPanel() {
             </div>
             <input
               type="range"
-              min="0.1"
-              max="1"
+              min="0"
+              max="0.9"
               step="0.05"
               value={calendar.opacity}
               onChange={(e) => updateCalendar({ opacity: Number(e.target.value) })}
               className="w-full h-1.5 bg-canvas-border rounded-full appearance-none cursor-pointer accent-canvas-accent"
             />
-            <p className="text-[10px] text-canvas-muted">글씨는 항상 선명하게 유지됩니다</p>
+            <p className="text-[10px] text-canvas-muted">0% 완전 투명 → 90% 진하게 · 글씨는 항상 선명</p>
           </div>
 
           {/* Today highlight */}

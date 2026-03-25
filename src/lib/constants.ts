@@ -165,7 +165,7 @@ export const DEFAULT_CALENDAR = {
   position: 'top-right' as const,
   showToday: true,
   showSunday: true,
-  opacity: 0.85,
+  opacity: 0.55,   // 배경 alpha 직접 값 (0=투명, 1=불투명)
   size: 'md' as const,
 }
 

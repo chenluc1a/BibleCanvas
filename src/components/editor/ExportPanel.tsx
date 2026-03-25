@@ -55,20 +55,32 @@ export default function ExportPanel() {
         allowTaint: false,
         backgroundColor: null,
         logging: false,
-        // html2canvas는 backdrop-filter 미지원 → onclone에서 제거
+        // html2canvas는 backdrop-filter와 CSS 변수 그라데이션 미지원
         onclone: (clonedDoc) => {
-          // canvas-glow 글로우 효과 제거 (blur pseudo-element)
-          const preview = clonedDoc.getElementById('canvas-preview')
-          if (preview) preview.classList.remove('canvas-glow')
+          // ① CSS 변수를 유효한 값으로 오버라이드 (var() 미해석 → NaN → addColorStop 오류 방지)
+          // ② backdrop-filter 전체 비활성화
+          // ③ CSS 변수 그라데이션을 쓰는 ::after 숨김
+          const fix = clonedDoc.createElement('style')
+          fix.textContent = `
+            :root {
+              --glow-color: rgba(0,0,0,0) !important;
+              --glow-hover: rgba(0,0,0,0) !important;
+              --canvas-accent: #7C6AEF !important;
+              --canvas-accent-light: #9B8CFB !important;
+            }
+            * {
+              backdrop-filter: none !important;
+              -webkit-backdrop-filter: none !important;
+            }
+            .canvas-glow::after { display: none !important; }
+            .bg-noise::before  { display: none !important; }
+          `
+          clonedDoc.head.appendChild(fix)
 
-          // backdrop-blur 클래스 전체 제거 후 background 단색으로 대체
+          // 인라인 backdrop-filter도 제거 (inline style 우선순위 대응)
           clonedDoc.querySelectorAll<HTMLElement>('[class*="backdrop-blur"]').forEach((el) => {
             el.style.backdropFilter = 'none'
             ;(el.style as CSSStyleDeclaration & { webkitBackdropFilter?: string }).webkitBackdropFilter = 'none'
-            // 배경색이 없으면 반투명 검정으로 보완
-            if (!el.style.backgroundColor) {
-              el.style.backgroundColor = 'rgba(0,0,0,0.45)'
-            }
           })
         },
       })

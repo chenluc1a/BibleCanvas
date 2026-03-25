@@ -83,7 +83,8 @@ export default function CanvasPreview() {
   const calendarSize = getCalendarSizeClasses(calendar.size)
 
   // 배경 투명도만 적용 (rgba) — 텍스트는 항상 불투명
-  const calendarBgColor = `rgba(0,0,0,${(0.45 * calendar.opacity).toFixed(2)})`
+  // opacity 값을 그대로 배경 alpha로 사용 (0=완전 투명, 1=완전 불투명)
+  const calendarBgColor = `rgba(0,0,0,${calendar.opacity.toFixed(2)})`
 
   // Text shadow style
   const textShadowStyle = style.textShadow
