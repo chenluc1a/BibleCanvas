@@ -175,7 +175,7 @@ export default function CanvasPreview() {
         {/* Calendar overlay — 배경 투명도만 적용, 텍스트는 불투명 유지 */}
         {calendar.show && (
           <div
-            className={`absolute ${calendarPositionClass} transition-all duration-300`}
+            className={`absolute ${calendarPositionClass}`}
           >
             <div
               className={`backdrop-blur-md rounded-lg text-white ${calendarSize.wrapper}`}

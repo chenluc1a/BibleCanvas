@@ -67,19 +67,19 @@ export default function CalendarPanel() {
             <label className="text-[11px] text-canvas-muted uppercase tracking-wider">
               위치
             </label>
-            {/* 미니 캔버스 위치 선택기 */}
+            {/* 미니 캔버스 위치 선택기 — 3×3 고정 높이 그리드 */}
             <div
-              className="rounded-xl border border-canvas-border/50 p-2 aspect-video grid grid-rows-3 gap-1"
-              style={{ backgroundColor: 'var(--canvas-surface)' }}
+              className="rounded-xl border border-canvas-border/50 p-2 grid grid-rows-3 gap-1.5"
+              style={{ backgroundColor: 'var(--canvas-surface)', height: '108px' }}
             >
               {POSITION_GRID.map((row, ri) => (
-                <div key={ri} className="grid grid-cols-3 gap-1 flex-1">
+                <div key={ri} className="grid grid-cols-3 gap-1.5 h-full">
                   {row.map(({ value, label }) => (
                     <button
                       key={value}
                       onClick={() => updateCalendar({ position: value })}
                       title={value}
-                      className={`rounded-lg text-sm font-bold transition-all duration-200 flex items-center justify-center ${
+                      className={`rounded-md text-sm font-bold transition-colors duration-200 flex items-center justify-center w-full h-full ${
                         calendar.position === value
                           ? 'bg-canvas-accent/25 text-canvas-accent-light border border-canvas-accent/50'
                           : 'text-canvas-muted hover:bg-canvas-border/40 border border-transparent'
