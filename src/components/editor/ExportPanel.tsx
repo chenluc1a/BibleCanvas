@@ -31,23 +31,46 @@ export default function ExportPanel() {
   const { outputSize, setOutputSize, isExporting, setExporting, verse } = useEditorStore()
 
   const handleDownload = async () => {
-    const element = document.getElementById('canvas-preview')
-    if (!element) {
+    const original = document.getElementById('canvas-preview')
+    if (!original) {
       alert('캔버스를 찾을 수 없습니다.')
       return
     }
 
     setExporting(true)
+    let clone: HTMLElement | null = null
     try {
       const { default: html2canvas } = await import('html2canvas')
       const spec = OUTPUT_SIZES[outputSize]
 
-      const previewW = element.offsetWidth || 400
-      const previewH = element.offsetHeight || 400
-      // scale이 Infinity / NaN이 되지 않도록 방어
+      // html2canvas가 CSS 변수 그라데이션(var(--glow-color) 등)을 파싱하면
+      // NaN → addColorStop 오류 발생. onclone으로는 해결 불가 (파싱이 먼저 일어남).
+      // 해결책: html2canvas에 넘기기 전에 직접 DOM을 복제하고 문제 CSS를 제거한다.
+      clone = original.cloneNode(true) as HTMLElement
+      clone.id = 'canvas-preview-export'
+      clone.style.position = 'fixed'
+      clone.style.top = '0'
+      clone.style.left = '-99999px'
+      clone.style.width = `${original.offsetWidth}px`
+      clone.style.height = `${original.offsetHeight}px`
+      clone.style.zIndex = '-1'
+
+      // canvas-glow 클래스 제거 — ::after 가상요소가 var(--glow-color) 그라데이션 사용
+      clone.classList.remove('canvas-glow')
+
+      // backdrop-filter 인라인 제거 (html2canvas 미지원)
+      clone.querySelectorAll<HTMLElement>('[class*="backdrop-blur"]').forEach((el) => {
+        el.style.backdropFilter = 'none'
+        ;(el.style as CSSStyleDeclaration & { webkitBackdropFilter?: string }).webkitBackdropFilter = 'none'
+      })
+
+      document.body.appendChild(clone)
+
+      const previewW = original.offsetWidth || 400
+      const previewH = original.offsetHeight || 400
       const scale = previewW > 0 ? Math.min(spec.width / previewW, 8) : 2
 
-      const canvas = await html2canvas(element, {
+      const canvas = await html2canvas(clone, {
         width: previewW,
         height: previewH,
         scale,
@@ -55,34 +78,6 @@ export default function ExportPanel() {
         allowTaint: false,
         backgroundColor: null,
         logging: false,
-        // html2canvas는 backdrop-filter와 CSS 변수 그라데이션 미지원
-        onclone: (clonedDoc) => {
-          // ① CSS 변수를 유효한 값으로 오버라이드 (var() 미해석 → NaN → addColorStop 오류 방지)
-          // ② backdrop-filter 전체 비활성화
-          // ③ CSS 변수 그라데이션을 쓰는 ::after 숨김
-          const fix = clonedDoc.createElement('style')
-          fix.textContent = `
-            :root {
-              --glow-color: rgba(0,0,0,0) !important;
-              --glow-hover: rgba(0,0,0,0) !important;
-              --canvas-accent: #7C6AEF !important;
-              --canvas-accent-light: #9B8CFB !important;
-            }
-            * {
-              backdrop-filter: none !important;
-              -webkit-backdrop-filter: none !important;
-            }
-            .canvas-glow::after { display: none !important; }
-            .bg-noise::before  { display: none !important; }
-          `
-          clonedDoc.head.appendChild(fix)
-
-          // 인라인 backdrop-filter도 제거 (inline style 우선순위 대응)
-          clonedDoc.querySelectorAll<HTMLElement>('[class*="backdrop-blur"]').forEach((el) => {
-            el.style.backdropFilter = 'none'
-            ;(el.style as CSSStyleDeclaration & { webkitBackdropFilter?: string }).webkitBackdropFilter = 'none'
-          })
-        },
       })
 
       const blob = await new Promise<Blob>((resolve, reject) => {
@@ -108,6 +103,7 @@ export default function ExportPanel() {
       console.error('[ExportPanel] PNG 내보내기 실패:', err)
       alert('다운로드 중 오류가 발생했습니다. 다시 시도해주세요.')
     } finally {
+      clone?.remove()
       setExporting(false)
     }
   }
