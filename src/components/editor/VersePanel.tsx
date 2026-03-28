@@ -22,11 +22,14 @@ export default function VersePanel() {
       return getVersesByTags([selectedTag])
     }
     if (searchQuery.trim()) {
+      const q = searchQuery.trim()
       return FEATURED_VERSES.filter(
         (v) =>
-          v.text.includes(searchQuery) ||
-          v.book.includes(searchQuery) ||
-          v.tags.some((t) => t.includes(searchQuery))
+          v.text.includes(q) ||
+          (v.textEn && v.textEn.toLowerCase().includes(q.toLowerCase())) ||
+          v.book.includes(q) ||
+          (v.bookEn && v.bookEn.toLowerCase().includes(q.toLowerCase())) ||
+          v.tags.some((t) => t.includes(q))
       )
     }
     return FEATURED_VERSES.slice(0, 6)
@@ -38,16 +41,34 @@ export default function VersePanel() {
     <div className="space-y-4 animate-fade-in">
       {/* Season banner */}
       <div className="glass rounded-xl p-3 border border-canvas-accent/10">
-        <div className="flex items-center gap-2 mb-1">
-          <div
-            className="w-2.5 h-2.5 rounded-full"
-            style={{ backgroundColor: seasonInfo.color }}
-          />
-          <span className="text-xs font-medium text-canvas-accent-light">
-            {seasonInfo.label}
-          </span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div
+              className="w-2.5 h-2.5 rounded-full"
+              style={{ backgroundColor: seasonInfo.color }}
+            />
+            <span className="text-xs font-medium text-canvas-accent-light">
+              {seasonInfo.label}
+            </span>
+          </div>
+          {/* 언어 토글 — 항상 표시 */}
+          <div className="flex gap-0.5 p-0.5 rounded-lg bg-canvas-border/30">
+            {(['ko', 'en'] as const).map((lang) => (
+              <button
+                key={lang}
+                onClick={() => setVerseLang(lang)}
+                className={`px-2 py-0.5 text-[11px] rounded-md font-medium transition-all duration-200 ${
+                  verseLang === lang
+                    ? 'bg-canvas-accent/20 text-canvas-accent-light'
+                    : 'text-canvas-muted hover:text-canvas-text'
+                }`}
+              >
+                {lang === 'ko' ? '한국어' : 'English'}
+              </button>
+            ))}
+          </div>
         </div>
-        <p className="text-[11px] text-canvas-muted">{themeMessage}</p>
+        <p className="text-[11px] text-canvas-muted mt-1">{themeMessage}</p>
       </div>
 
       {/* Mode tabs */}
@@ -151,7 +172,7 @@ export default function VersePanel() {
               >
                 <div className="flex items-start justify-between gap-2 mb-1.5">
                   <span className="text-[11px] font-medium text-canvas-accent-light">
-                    {formatVerseRef(v)}
+                    {formatVerseRef(v, verseLang)}
                   </span>
                   {verse?.id === v.id && (
                     <span className="text-[10px] bg-canvas-accent/20 text-canvas-accent-light px-1.5 py-0.5 rounded-md">
@@ -160,7 +181,7 @@ export default function VersePanel() {
                   )}
                 </div>
                 <p className="text-xs text-canvas-text/80 leading-relaxed line-clamp-3">
-                  {v.text}
+                  {verseLang === 'en' && v.textEn ? v.textEn : v.text}
                 </p>
                 <div className="flex gap-1 mt-2">
                   {v.tags.slice(0, 3).map((tag) => (
@@ -175,28 +196,6 @@ export default function VersePanel() {
               </button>
             ))
           )}
-        </div>
-      )}
-
-      {/* Language toggle — 구절 선택 시 영어/한글 전환 */}
-      {verse && verse.textEn && (
-        <div className="flex items-center justify-between p-2 rounded-xl bg-canvas-surface/60 border border-canvas-border/40">
-          <span className="text-[11px] text-canvas-muted">말씀 언어</span>
-          <div className="flex gap-1 p-0.5 rounded-lg bg-canvas-border/30">
-            {(['ko', 'en'] as const).map((lang) => (
-              <button
-                key={lang}
-                onClick={() => setVerseLang(lang)}
-                className={`px-2.5 py-1 text-[11px] rounded-md font-medium transition-all duration-200 ${
-                  verseLang === lang
-                    ? 'bg-canvas-accent/20 text-canvas-accent-light'
-                    : 'text-canvas-muted hover:text-canvas-text'
-                }`}
-              >
-                {lang === 'ko' ? '한국어' : 'English'}
-              </button>
-            ))}
-          </div>
         </div>
       )}
 

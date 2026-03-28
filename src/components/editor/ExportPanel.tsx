@@ -43,27 +43,25 @@ export default function ExportPanel() {
       const { default: html2canvas } = await import('html2canvas')
       const spec = OUTPUT_SIZES[outputSize]
 
-      // html2canvas가 CSS 변수 그라데이션(var(--glow-color) 등)을 파싱하면
-      // NaN → addColorStop 오류 발생. onclone으로는 해결 불가 (파싱이 먼저 일어남).
-      // 해결책: html2canvas에 넘기기 전에 직접 DOM을 복제하고 문제 CSS를 제거한다.
+      // html2canvas는 CSS 변수 그라데이션(var(--glow-color))을 파싱할 때 NaN → addColorStop 오류.
+      // onclone은 파싱 이후에 실행되므로 해결 불가.
+      // 해결책: html2canvas에 넘기기 전에 직접 클론 후 문제 CSS 제거.
       clone = original.cloneNode(true) as HTMLElement
       clone.id = 'canvas-preview-export'
-      clone.style.position = 'fixed'
-      clone.style.top = '0'
-      clone.style.left = '-99999px'
-      clone.style.width = `${original.offsetWidth}px`
-      clone.style.height = `${original.offsetHeight}px`
-      clone.style.zIndex = '-1'
-
-      // canvas-glow 클래스 제거 — ::after 가상요소가 var(--glow-color) 그라데이션 사용
+      clone.style.cssText = [
+        'position:fixed',
+        'top:0',
+        `left:-99999px`,
+        `width:${original.offsetWidth}px`,
+        `height:${original.offsetHeight}px`,
+        'z-index:-1',
+        'visibility:hidden',
+      ].join(';')
       clone.classList.remove('canvas-glow')
-
-      // backdrop-filter 인라인 제거 (html2canvas 미지원)
       clone.querySelectorAll<HTMLElement>('[class*="backdrop-blur"]').forEach((el) => {
         el.style.backdropFilter = 'none'
         ;(el.style as CSSStyleDeclaration & { webkitBackdropFilter?: string }).webkitBackdropFilter = 'none'
       })
-
       document.body.appendChild(clone)
 
       const previewW = original.offsetWidth || 400
@@ -80,6 +78,34 @@ export default function ExportPanel() {
         logging: false,
       })
 
+      const verseRef = verse
+        ? `${verse.book}${verse.chapter}_${verse.verse}`
+        : 'custom'
+      const filename = `bible-canvas_${verseRef}_${outputSize}_${spec.width}x${spec.height}.png`
+
+      // iOS Safari: blob URL의 download 속성이 동작하지 않음 → 새 탭에서 열기
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
+      if (isIOS) {
+        const dataUrl = canvas.toDataURL('image/png', 1.0)
+        const win = window.open('', '_blank')
+        if (win) {
+          win.document.write(
+            '<html><head>' +
+            '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+            '<style>body{margin:0;background:#111;display:flex;flex-direction:column;' +
+            'align-items:center;padding:20px;min-height:100vh;box-sizing:border-box}' +
+            'img{max-width:100%;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.6)}' +
+            'p{color:#fff;font-family:sans-serif;font-size:15px;margin-top:16px;' +
+            'text-align:center;line-height:1.6}</style></head><body>' +
+            `<img src="${dataUrl}">` +
+            '<p>이미지를 <strong>꾹 눌러서</strong> 저장하세요 📱</p>' +
+            '</body></html>'
+          )
+          win.document.close()
+        }
+        return
+      }
+
       const blob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob(
           (b) => (b ? resolve(b) : reject(new Error('Blob 생성 실패'))),
@@ -88,13 +114,26 @@ export default function ExportPanel() {
         )
       })
 
+      // Web Share API — Android Chrome / 최신 모바일 브라우저
+      try {
+        const file = new File([blob], filename, { type: 'image/png' })
+        if (
+          typeof navigator.share === 'function' &&
+          typeof navigator.canShare === 'function' &&
+          navigator.canShare({ files: [file] })
+        ) {
+          await navigator.share({ files: [file], title: 'Bible Canvas' })
+          return
+        }
+      } catch {
+        // 공유 취소 또는 미지원 → 일반 다운로드로 폴백
+      }
+
+      // 데스크톱 / Android 폴백
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
-      const verseRef = verse
-        ? `${verse.book}${verse.chapter}_${verse.verse}`
-        : 'custom'
       a.href = url
-      a.download = `bible-canvas_${verseRef}_${outputSize}_${spec.width}x${spec.height}.png`
+      a.download = filename
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)

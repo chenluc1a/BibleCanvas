@@ -43,7 +43,14 @@ export const FONTS: FontOption[] = [
   { id: 'gowun-dodum',    label: '고운돋움',     family: "'Gowun Dodum', sans-serif",     type: 'sans-serif' },
 ]
 
+// Unsplash 썸네일/배경 URL 빌더
+const usp = (id: string, tw: number, th: number) =>
+  `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${tw}&h=${th}&q=80`
+const usbg = (id: string) =>
+  `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1920&q=85`
+
 export const PRESET_THEMES: PresetTheme[] = [
+  // ─── 로컬 프리셋 ───────────────────────────────────────────────
   {
     id: 'early-spring',
     label: '이른 봄',
@@ -85,6 +92,63 @@ export const PRESET_THEMES: PresetTheme[] = [
     thumbnail: '/presets/pure-white-thumb.jpg',
     backgroundUrl: '/presets/pure-white.jpg',
     defaultTextColor: '#2C3E2D',
+  },
+  // ─── Unsplash 무료 사진 ────────────────────────────────────────
+  {
+    id: 'mountain-sunrise',
+    label: '산 일출',
+    thumbnail: usp('1464822759023-fed622ff2c3b', 400, 300),
+    backgroundUrl: usbg('1464822759023-fed622ff2c3b'),
+    defaultTextColor: '#FFF8E8',
+  },
+  {
+    id: 'misty-mountains',
+    label: '안개 산',
+    thumbnail: usp('1506905925346-21bda4d32df4', 400, 300),
+    backgroundUrl: usbg('1506905925346-21bda4d32df4'),
+    defaultTextColor: '#E8F0F5',
+  },
+  {
+    id: 'calm-ocean',
+    label: '잔잔한 바다',
+    thumbnail: usp('1507525428034-b723cf961d3e', 400, 300),
+    backgroundUrl: usbg('1507525428034-b723cf961d3e'),
+    defaultTextColor: '#F0F8FF',
+  },
+  {
+    id: 'starry-night',
+    label: '별밤',
+    thumbnail: usp('1419242902214-272b3f66ee7a', 400, 300),
+    backgroundUrl: usbg('1419242902214-272b3f66ee7a'),
+    defaultTextColor: '#E8EEFF',
+  },
+  {
+    id: 'golden-wheat',
+    label: '황금 밀밭',
+    thumbnail: usp('1475924156734-496f6cac6ec1', 400, 300),
+    backgroundUrl: usbg('1475924156734-496f6cac6ec1'),
+    defaultTextColor: '#FFF8E0',
+  },
+  {
+    id: 'cherry-blossom',
+    label: '벚꽃',
+    thumbnail: usp('1498429089284-41f8cf3ffd39', 400, 300),
+    backgroundUrl: usbg('1498429089284-41f8cf3ffd39'),
+    defaultTextColor: '#5A1A3A',
+  },
+  {
+    id: 'forest-light',
+    label: '숲 빛줄기',
+    thumbnail: usp('1448375240586-882707db888b', 400, 300),
+    backgroundUrl: usbg('1448375240586-882707db888b'),
+    defaultTextColor: '#F0F8EC',
+  },
+  {
+    id: 'autumn-trees',
+    label: '가을 단풍',
+    thumbnail: usp('1508739773434-c26b3d09e071', 400, 300),
+    backgroundUrl: usbg('1508739773434-c26b3d09e071'),
+    defaultTextColor: '#FFF5E8',
   },
 ]
 
