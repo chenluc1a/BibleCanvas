@@ -61,6 +61,11 @@ export interface FontOption {
 
 export type TextAlign = 'left' | 'center' | 'right'
 
+export type TextPosition =
+  | 'top-left'    | 'top-center'    | 'top-right'
+  | 'middle-left' | 'center'        | 'middle-right'
+  | 'bottom-left' | 'bottom-center' | 'bottom-right'
+
 export type CalendarPosition =
   | 'top-left'    | 'top-center'    | 'top-right'
   | 'middle-left' | 'center'        | 'middle-right'
@@ -75,6 +80,7 @@ export interface StyleState {
   fontSize: number
   textColor: string
   textAlign: TextAlign
+  textPosition: TextPosition
   textShadow: boolean
   shadowBlur: number
   lineHeight: number

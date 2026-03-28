@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useEditorStore } from '@/store/editor'
 import { OUTPUT_SIZES } from '@/lib/constants'
 import type { OutputSize } from '@/types'
@@ -13,15 +14,19 @@ const SIZE_OPTIONS: { key: OutputSize; emoji: string }[] = [
   { key: 'youtube', emoji: '▶️' },
 ]
 
-/** 출력 비율을 시각적으로 표현하는 미니 미리보기 박스 */
-function AspectBox({ width, height }: { width: number; height: number }) {
+/** 실제 비율을 시각적으로 표현 — maxDim 기준으로 스케일 */
+function RatioBox({ width, height, active }: { width: number; height: number; active: boolean }) {
+  const maxDim = 44
   const ratio = width / height
-  // 최대 너비 32px 기준으로 높이 계산 (비율 유지)
-  const boxW = ratio >= 1 ? 32 : Math.round(32 * ratio)
-  const boxH = ratio >= 1 ? Math.round(32 / ratio) : 32
+  const boxW = ratio >= 1 ? maxDim : Math.round(maxDim * ratio)
+  const boxH = ratio >= 1 ? Math.round(maxDim / ratio) : maxDim
   return (
     <div
-      className="rounded border border-canvas-border/60 bg-canvas-border/20 flex-shrink-0"
+      className={`rounded border flex-shrink-0 transition-all duration-200 ${
+        active
+          ? 'border-canvas-accent bg-canvas-accent/20'
+          : 'border-canvas-border/60 bg-canvas-border/15'
+      }`}
       style={{ width: boxW, height: boxH }}
     />
   )
@@ -29,7 +34,9 @@ function AspectBox({ width, height }: { width: number; height: number }) {
 
 export default function ExportPanel() {
   const { outputSize, setOutputSize, isExporting, setExporting, verse } = useEditorStore()
+  const [copied, setCopied] = useState(false)
 
+  // ─── 다운로드 ─────────────────────────────────────────────────────────────
   const handleDownload = async () => {
     const original = document.getElementById('canvas-preview')
     if (!original) {
@@ -44,18 +51,14 @@ export default function ExportPanel() {
       const spec = OUTPUT_SIZES[outputSize]
 
       // html2canvas는 CSS 변수 그라데이션(var(--glow-color))을 파싱할 때 NaN → addColorStop 오류.
-      // onclone은 파싱 이후에 실행되므로 해결 불가.
-      // 해결책: html2canvas에 넘기기 전에 직접 클론 후 문제 CSS 제거.
+      // onclone은 파싱 이후 실행되므로 해결 불가 → 직접 클론 후 문제 CSS 제거.
       clone = original.cloneNode(true) as HTMLElement
       clone.id = 'canvas-preview-export'
       clone.style.cssText = [
-        'position:fixed',
-        'top:0',
-        `left:-99999px`,
+        'position:fixed', 'top:0', 'left:-99999px',
         `width:${original.offsetWidth}px`,
         `height:${original.offsetHeight}px`,
-        'z-index:-1',
-        'visibility:hidden',
+        'z-index:-1', 'visibility:hidden',
       ].join(';')
       clone.classList.remove('canvas-glow')
       clone.querySelectorAll<HTMLElement>('[class*="backdrop-blur"]').forEach((el) => {
@@ -83,7 +86,8 @@ export default function ExportPanel() {
         : 'custom'
       const filename = `bible-canvas_${verseRef}_${outputSize}_${spec.width}x${spec.height}.png`
 
-      // iOS Safari: blob URL의 download 속성이 동작하지 않음 → 새 탭에서 열기
+      // ── iOS Safari ──────────────────────────────────────────────────────
+      // blob URL에 download 속성이 동작하지 않으므로 새 탭에서 이미지 표시
       const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
       if (isIOS) {
         const dataUrl = canvas.toDataURL('image/png', 1.0)
@@ -106,30 +110,14 @@ export default function ExportPanel() {
         return
       }
 
+      // ── 데스크톱 & Android Chrome ─────────────────────────────────────
+      // blob URL + <a download> 방식 — 직접 로컬 저장
       const blob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob(
           (b) => (b ? resolve(b) : reject(new Error('Blob 생성 실패'))),
-          'image/png',
-          1.0
+          'image/png', 1.0
         )
       })
-
-      // Web Share API — Android Chrome / 최신 모바일 브라우저
-      try {
-        const file = new File([blob], filename, { type: 'image/png' })
-        if (
-          typeof navigator.share === 'function' &&
-          typeof navigator.canShare === 'function' &&
-          navigator.canShare({ files: [file] })
-        ) {
-          await navigator.share({ files: [file], title: 'Bible Canvas' })
-          return
-        }
-      } catch {
-        // 공유 취소 또는 미지원 → 일반 다운로드로 폴백
-      }
-
-      // 데스크톱 / Android 폴백
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -147,6 +135,26 @@ export default function ExportPanel() {
     }
   }
 
+  // ─── 링크 공유 ────────────────────────────────────────────────────────────
+  const handleShare = async () => {
+    const url = window.location.href
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Bible Canvas', url })
+        return
+      } catch {
+        // 취소 또는 미지원 → 클립보드
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      alert('링크 복사에 실패했습니다.')
+    }
+  }
+
   return (
     <div className="space-y-5 animate-fade-in">
       <div className="flex items-center gap-2 text-sm font-medium text-canvas-text">
@@ -158,55 +166,62 @@ export default function ExportPanel() {
         내보내기
       </div>
 
-      {/* Size selection */}
+      {/* ── 출력 사이즈 선택 ── */}
       <div className="space-y-2">
         <label className="text-[11px] text-canvas-muted uppercase tracking-wider">
           출력 사이즈
         </label>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1.5">
           {SIZE_OPTIONS.map(({ key, emoji }) => {
             const spec = OUTPUT_SIZES[key]
+            const active = outputSize === key
             return (
               <button
                 key={key}
                 onClick={() => setOutputSize(key)}
-                className={`p-2.5 rounded-xl border text-left transition-all duration-200 ${
-                  outputSize === key
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all duration-200 ${
+                  active
                     ? 'bg-canvas-accent/10 border-canvas-accent/40'
                     : 'border-canvas-border hover:border-canvas-accent/20 bg-canvas-surface/30'
                 }`}
               >
-                <div className="flex items-center gap-2 mb-1.5">
-                  {/* 시각적 비율 박스 */}
-                  <AspectBox width={spec.width} height={spec.height} />
-                  <div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs">{emoji}</span>
-                      <span className={`text-xs font-medium ${
-                        outputSize === key ? 'text-canvas-accent-light' : 'text-canvas-text'
-                      }`}>
-                        {spec.label}
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-canvas-muted mt-0.5">
-                      {spec.width}×{spec.height}
-                    </p>
-                  </div>
+                {/* 비율 시각화 박스 — 44px 기준 실제 비율 */}
+                <div className="w-12 flex items-center justify-center flex-shrink-0">
+                  <RatioBox width={spec.width} height={spec.height} active={active} />
                 </div>
-                <p className="text-[9px] text-canvas-muted/70">
-                  {spec.ratio} • {spec.platform}
-                </p>
+
+                {/* 레이블 */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs">{emoji}</span>
+                    <span className={`text-xs font-semibold ${active ? 'text-canvas-accent-light' : 'text-canvas-text'}`}>
+                      {spec.label}
+                    </span>
+                    <span className="text-[10px] text-canvas-muted/60 ml-auto flex-shrink-0">
+                      {spec.ratio}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-canvas-muted mt-0.5">
+                    {spec.width} × {spec.height} • {spec.platform}
+                  </p>
+                </div>
+
+                {active && (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-canvas-accent flex-shrink-0">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                )}
               </button>
             )
           })}
         </div>
       </div>
 
-      {/* Download button */}
+      {/* ── 저장 버튼 ── */}
       <button
         onClick={handleDownload}
         disabled={isExporting}
-        className={`w-full py-3 px-4 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-all duration-200 ${
+        className={`w-full py-3 px-4 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-200 ${
           isExporting
             ? 'bg-canvas-border text-canvas-muted cursor-not-allowed'
             : 'bg-gradient-to-r from-canvas-accent to-canvas-accent-light text-white hover:shadow-lg hover:shadow-canvas-accent/30 hover:-translate-y-0.5 active:translate-y-0'
@@ -218,27 +233,61 @@ export default function ExportPanel() {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            내보내는 중...
+            저장 중...
           </>
         ) : (
           <>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
-            PNG 다운로드 ({OUTPUT_SIZES[outputSize].width}×{OUTPUT_SIZES[outputSize].height})
+            이미지 저장 ({OUTPUT_SIZES[outputSize].width}×{OUTPUT_SIZES[outputSize].height})
           </>
         )}
       </button>
 
-      {/* Platform hints */}
+      {/* iOS 안내 */}
+      {/iPhone|iPad|iPod/i.test(typeof navigator !== 'undefined' ? navigator.userAgent : '') && (
+        <p className="text-[11px] text-canvas-muted text-center -mt-3">
+          📱 새 탭에서 이미지를 꾹 눌러 저장하세요
+        </p>
+      )}
+
+      {/* ── 링크 공유 (별도) ── */}
+      <div className="flex gap-2">
+        <button
+          onClick={handleShare}
+          className="flex-1 py-2.5 px-3 rounded-xl border border-canvas-border text-xs text-canvas-muted hover:border-canvas-accent/30 hover:text-canvas-text flex items-center justify-center gap-1.5 transition-all duration-200"
+        >
+          {copied ? (
+            <>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-green-400">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <span className="text-green-400">링크 복사됨</span>
+            </>
+          ) : (
+            <>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+              </svg>
+              링크 공유
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* ── 플랫폼 팁 ── */}
       <div className="glass-subtle rounded-xl p-3">
         <p className="text-[11px] text-canvas-muted leading-relaxed">
-          💡 <strong className="text-canvas-text/80">팁</strong>: 인스타그램 스토리에는{' '}
-          <span className="text-canvas-accent-light">스토리 (9:16)</span>, 카카오톡 프로필에는{' '}
-          <span className="text-canvas-accent-light">카카오 프로필 (1:1)</span>, PC 바탕화면에는{' '}
-          <span className="text-canvas-accent-light">PC (1920×1080)</span> 사이즈를 추천합니다.
+          💡 인스타그램 스토리 →{' '}
+          <span className="text-canvas-accent-light">스토리 9:16</span>
+          {' '}/ 카카오 프로필 →{' '}
+          <span className="text-canvas-accent-light">카카오 1:1</span>
+          {' '}/ PC 배경화면 →{' '}
+          <span className="text-canvas-accent-light">PC 1920×1080</span>
         </p>
       </div>
     </div>

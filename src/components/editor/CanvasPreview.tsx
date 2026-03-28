@@ -3,7 +3,7 @@
 import { useEditorStore } from '@/store/editor'
 import { OUTPUT_SIZES } from '@/lib/constants'
 import { formatVerseRef } from '@/lib/bible-data'
-import type { BackgroundFit, CalendarPosition, CalendarSize } from '@/types'
+import type { BackgroundFit, CalendarPosition, CalendarSize, TextPosition } from '@/types'
 
 function getObjectFitStyle(fit: BackgroundFit): React.CSSProperties {
   switch (fit) {
@@ -29,6 +29,21 @@ function getCalendarPositionClass(pos: CalendarPosition): string {
     'bottom-right':  'bottom-3 right-3',
   }
   return map[pos] ?? 'top-3 right-3'
+}
+
+function getTextPositionStyle(pos: TextPosition): React.CSSProperties {
+  const map: Record<TextPosition, React.CSSProperties> = {
+    'top-left':      { justifyContent: 'flex-start', alignItems: 'flex-start' },
+    'top-center':    { justifyContent: 'flex-start', alignItems: 'center'     },
+    'top-right':     { justifyContent: 'flex-start', alignItems: 'flex-end'   },
+    'middle-left':   { justifyContent: 'center',     alignItems: 'flex-start' },
+    'center':        { justifyContent: 'center',     alignItems: 'center'     },
+    'middle-right':  { justifyContent: 'center',     alignItems: 'flex-end'   },
+    'bottom-left':   { justifyContent: 'flex-end',   alignItems: 'flex-start' },
+    'bottom-center': { justifyContent: 'flex-end',   alignItems: 'center'     },
+    'bottom-right':  { justifyContent: 'flex-end',   alignItems: 'flex-end'   },
+  }
+  return map[pos] ?? { justifyContent: 'center', alignItems: 'center' }
 }
 
 function getCalendarSizeClasses(size: CalendarSize): { wrapper: string; text: string; header: string } {
@@ -138,7 +153,10 @@ export default function CanvasPreview() {
         </div>
 
         {/* Text overlay */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center p-8 sm:p-12">
+        <div
+          className="absolute inset-0 flex flex-col p-8 sm:p-12"
+          style={getTextPositionStyle(style.textPosition ?? 'center')}
+        >
           {displayText ? (
             <div
               className="max-w-[85%] transition-all duration-300"

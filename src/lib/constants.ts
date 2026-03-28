@@ -218,6 +218,7 @@ export const DEFAULT_STYLE = {
   fontSize: 36,
   textColor: '#FFFFFF',
   textAlign: 'center' as const,
+  textPosition: 'center' as const,
   textShadow: true,
   shadowBlur: 12,
   lineHeight: 1.8,

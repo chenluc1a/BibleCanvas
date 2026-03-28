@@ -2,6 +2,25 @@
 
 import { useEditorStore } from '@/store/editor'
 import { FONTS } from '@/lib/constants'
+import type { TextPosition } from '@/types'
+
+const POSITION_GRID: { value: TextPosition; label: string }[][] = [
+  [
+    { value: 'top-left',      label: '↖' },
+    { value: 'top-center',    label: '↑' },
+    { value: 'top-right',     label: '↗' },
+  ],
+  [
+    { value: 'middle-left',   label: '←' },
+    { value: 'center',        label: '✦' },
+    { value: 'middle-right',  label: '→' },
+  ],
+  [
+    { value: 'bottom-left',   label: '↙' },
+    { value: 'bottom-center', label: '↓' },
+    { value: 'bottom-right',  label: '↘' },
+  ],
+]
 
 const TEXT_COLORS = [
   '#FFFFFF', '#F5F0E8', '#E8E8F0', '#000000',
@@ -97,10 +116,32 @@ export default function StylePanel() {
         </div>
       </div>
 
+      {/* Text position — 9-grid */}
+      <div className="space-y-2">
+        <label className="text-[11px] text-canvas-muted uppercase tracking-wider">
+          문구 위치
+        </label>
+        <div className="grid grid-cols-3 gap-1" style={{ height: 90 }}>
+          {POSITION_GRID.flat().map(({ value, label }) => (
+            <button
+              key={value}
+              onClick={() => updateStyle({ textPosition: value })}
+              className={`rounded-lg border text-base font-medium transition-all duration-200 ${
+                (style.textPosition ?? 'center') === value
+                  ? 'bg-canvas-accent/20 border-canvas-accent/40 text-canvas-accent-light'
+                  : 'border-canvas-border text-canvas-muted hover:border-canvas-accent/20 hover:text-canvas-text'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Alignment */}
       <div className="space-y-2">
         <label className="text-[11px] text-canvas-muted uppercase tracking-wider">
-          정렬
+          텍스트 정렬
         </label>
         <div className="flex gap-1 p-1 rounded-lg bg-canvas-surface/80">
           {[
