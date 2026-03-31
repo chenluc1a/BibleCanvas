@@ -52,13 +52,18 @@ export default function ExportPanel() {
 
       // html2canvas는 CSS 변수 그라데이션(var(--glow-color))을 파싱할 때 NaN → addColorStop 오류.
       // onclone은 파싱 이후 실행되므로 해결 불가 → 직접 클론 후 문제 CSS 제거.
+      const previewW = original.offsetWidth || 400
+      const previewH = original.offsetHeight || 400
+
       clone = original.cloneNode(true) as HTMLElement
       clone.id = 'canvas-preview-export'
       clone.style.cssText = [
         'position:fixed', 'top:0', 'left:-99999px',
-        `width:${original.offsetWidth}px`,
-        `height:${original.offsetHeight}px`,
-        'z-index:-1', 'visibility:hidden',
+        `width:${previewW}px`,
+        `height:${previewH}px`,
+        'z-index:-1',
+        'opacity:0',           // visibility:hidden 대신 opacity:0 — 이미지 렌더링 차단 방지
+        'pointer-events:none',
       ].join(';')
       clone.classList.remove('canvas-glow')
       clone.querySelectorAll<HTMLElement>('[class*="backdrop-blur"]').forEach((el) => {
@@ -67,8 +72,21 @@ export default function ExportPanel() {
       })
       document.body.appendChild(clone)
 
-      const previewW = original.offsetWidth || 400
-      const previewH = original.offsetHeight || 400
+      // 브라우저 레이아웃 재계산 강제 (reflow)
+      void clone.offsetWidth
+
+      // 클론 내 이미지가 모두 로드될 때까지 대기 — 이미지 미로드 시 빈 배경 방지
+      const cloneImages = Array.from(clone.querySelectorAll<HTMLImageElement>('img'))
+      await Promise.all(
+        cloneImages.map(img => {
+          if (img.complete && img.naturalWidth > 0) return Promise.resolve()
+          return new Promise<void>(resolve => {
+            img.onload = () => resolve()
+            img.onerror = () => resolve()
+          })
+        })
+      )
+
       const scale = previewW > 0 ? Math.min(spec.width / previewW, 8) : 2
 
       const canvas = await html2canvas(clone, {
@@ -77,7 +95,7 @@ export default function ExportPanel() {
         scale,
         useCORS: true,
         allowTaint: false,
-        backgroundColor: null,
+        backgroundColor: '#000000', // null → 배경 로드 실패 시 투명 방지
         logging: false,
       })
 
