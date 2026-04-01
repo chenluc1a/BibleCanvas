@@ -50,20 +50,22 @@ export default function ExportPanel() {
       const { default: html2canvas } = await import('html2canvas')
       const spec = OUTPUT_SIZES[outputSize]
 
-      // html2canvas는 CSS 변수 그라데이션(var(--glow-color))을 파싱할 때 NaN → addColorStop 오류.
-      // onclone은 파싱 이후 실행되므로 해결 불가 → 직접 클론 후 문제 CSS 제거.
       const previewW = original.offsetWidth || 400
       const previewH = original.offsetHeight || 400
 
+      // ── 클론 생성 & 문제 CSS 제거 ─────────────────────────────────────────
+      // html2canvas 이슈:
+      //   1) canvas-glow::after에 var(--glow-color) 그라데이션 → NaN addColorStop 오류
+      //   2) overflow:hidden + border-radius 조합 → 렌더링 누락
+      //   onclone은 파싱 이후 실행되므로 해결 불가 → 직접 클론 후 문제 CSS 제거
       clone = original.cloneNode(true) as HTMLElement
       clone.id = 'canvas-preview-export'
       clone.style.cssText = [
         'position:fixed', 'top:0', 'left:-99999px',
-        `width:${previewW}px`,
-        `height:${previewH}px`,
-        'z-index:-1',
-        'opacity:0',           // visibility:hidden 대신 opacity:0 — 이미지 렌더링 차단 방지
-        'pointer-events:none',
+        `width:${previewW}px`, `height:${previewH}px`,
+        'z-index:-1', 'opacity:0', 'pointer-events:none',
+        'border-radius:0',   // rounded-2xl: overflow:hidden + border-radius 조합 버그 방지
+        'overflow:visible',  // overflow:hidden 제거
       ].join(';')
       clone.classList.remove('canvas-glow')
       clone.querySelectorAll<HTMLElement>('[class*="backdrop-blur"]').forEach((el) => {
@@ -72,11 +74,35 @@ export default function ExportPanel() {
       })
       document.body.appendChild(clone)
 
-      // 브라우저 레이아웃 재계산 강제 (reflow)
+      // reflow 강제 → 레이아웃 안정화 후 캡처
       void clone.offsetWidth
 
-      // 클론 내 이미지가 모두 로드될 때까지 대기 — 이미지 미로드 시 빈 배경 방지
+      // ── 이미지를 data URL로 변환 → CORS 문제 완전 제거 ────────────────────
+      // Unsplash 등 크로스 오리진 이미지는 allowTaint:false 시 canvas가 taint되어
+      // toDataURL/toBlob 호출이 SecurityError로 실패하므로, 미리 data URL로 변환.
       const cloneImages = Array.from(clone.querySelectorAll<HTMLImageElement>('img'))
+      await Promise.all(
+        cloneImages.map(async (img) => {
+          const src = img.getAttribute('src') || ''
+          if (!src || src.startsWith('data:')) return
+          try {
+            const res = await fetch(src, { mode: 'cors' })
+            const blob = await res.blob()
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader()
+              reader.onload = () => resolve(reader.result as string)
+              reader.onerror = reject
+              reader.readAsDataURL(blob)
+            })
+            img.removeAttribute('crossorigin')
+            img.src = dataUrl
+          } catch {
+            // fetch 실패 시 원본 src 유지 (이미지 없이 렌더링)
+          }
+        })
+      )
+
+      // data URL 교체 후 이미지 로드 완료 대기
       await Promise.all(
         cloneImages.map(img => {
           if (img.complete && img.naturalWidth > 0) return Promise.resolve()
@@ -93,10 +119,11 @@ export default function ExportPanel() {
         width: previewW,
         height: previewH,
         scale,
-        useCORS: true,
-        allowTaint: false,
-        backgroundColor: '#000000', // null → 배경 로드 실패 시 투명 방지
+        useCORS: false,     // data URL 변환 후 CORS 불필요
+        allowTaint: true,   // taint 허용 (data URL이므로 보안 문제 없음)
+        backgroundColor: '#000000',
         logging: false,
+        imageTimeout: 15000,
       })
 
       const verseRef = verse
