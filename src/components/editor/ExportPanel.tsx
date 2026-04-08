@@ -60,18 +60,34 @@ export default function ExportPanel() {
       //   onclone은 파싱 이후 실행되므로 해결 불가 → 직접 클론 후 문제 CSS 제거
       clone = original.cloneNode(true) as HTMLElement
       clone.id = 'canvas-preview-export'
+      // ⚠️ opacity:0 / visibility:hidden 절대 금지 — html2canvas가 투명/빈 캔버스로 렌더링
       clone.style.cssText = [
-        'position:fixed', 'top:0', 'left:-99999px',
+        'position:fixed', 'top:0', `left:-${previewW + 200}px`,
         `width:${previewW}px`, `height:${previewH}px`,
-        'z-index:-1', 'opacity:0', 'pointer-events:none',
-        'border-radius:0',   // rounded-2xl: overflow:hidden + border-radius 조합 버그 방지
-        'overflow:visible',  // overflow:hidden 제거
+        'z-index:-9999', 'pointer-events:none',
+        'border-radius:0',   // rounded-2xl overflow:hidden + border-radius 조합 버그 방지
+        'overflow:visible',
       ].join(';')
       clone.classList.remove('canvas-glow')
       clone.querySelectorAll<HTMLElement>('[class*="backdrop-blur"]').forEach((el) => {
         el.style.backdropFilter = 'none'
         ;(el.style as CSSStyleDeclaration & { webkitBackdropFilter?: string }).webkitBackdropFilter = 'none'
       })
+
+      // CSS 변수(var()) → computed 실제값으로 교체
+      // html2canvas는 inline style 내 var() 해석 불가 → 배경 투명 → 검은화면 원인
+      const origEls = [original, ...Array.from(original.querySelectorAll<HTMLElement>('*'))]
+      const cloneEls = [clone,   ...Array.from(clone.querySelectorAll<HTMLElement>('*'))]
+      origEls.forEach((origEl, i) => {
+        const cloneEl = cloneEls[i] as HTMLElement | undefined
+        if (!cloneEl || !(origEl.getAttribute('style') ?? '').includes('var(')) return
+        const computed = window.getComputedStyle(origEl)
+        ;(['backgroundColor', 'background', 'color', 'borderColor'] as const).forEach((p) => {
+          if ((origEl.style as Record<string, string>)[p])
+            ;(cloneEl.style as Record<string, string>)[p] = (computed as unknown as Record<string, string>)[p]
+        })
+      })
+
       document.body.appendChild(clone)
 
       // reflow 강제 → 레이아웃 안정화 후 캡처
@@ -132,26 +148,14 @@ export default function ExportPanel() {
       const filename = `bible-canvas_${verseRef}_${outputSize}_${spec.width}x${spec.height}.png`
 
       // ── iOS Safari ──────────────────────────────────────────────────────
-      // blob URL에 download 속성이 동작하지 않으므로 새 탭에서 이미지 표시
+      // <a download> 동작 안 함 → PNG blob을 새 탭에서 직접 열어 꾹 눌러 저장
       const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
       if (isIOS) {
-        const dataUrl = canvas.toDataURL('image/png', 1.0)
-        const win = window.open('', '_blank')
-        if (win) {
-          win.document.write(
-            '<html><head>' +
-            '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-            '<style>body{margin:0;background:#111;display:flex;flex-direction:column;' +
-            'align-items:center;padding:20px;min-height:100vh;box-sizing:border-box}' +
-            'img{max-width:100%;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.6)}' +
-            'p{color:#fff;font-family:sans-serif;font-size:15px;margin-top:16px;' +
-            'text-align:center;line-height:1.6}</style></head><body>' +
-            `<img src="${dataUrl}">` +
-            '<p>이미지를 <strong>꾹 눌러서</strong> 저장하세요 📱</p>' +
-            '</body></html>'
-          )
-          win.document.close()
-        }
+        const iosBlob = await new Promise<Blob>((resolve, reject) =>
+          canvas.toBlob(b => b ? resolve(b) : reject(new Error('Blob 실패')), 'image/png', 1.0)
+        )
+        const iosUrl = URL.createObjectURL(iosBlob)
+        if (!window.open(iosUrl, '_blank')) location.href = iosUrl
         return
       }
 
