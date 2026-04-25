@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { useEditorStore } from '@/store/editor'
 import { OUTPUT_SIZES } from '@/lib/constants'
+import { formatVerseRef } from '@/lib/bible-data'
+import { renderToCanvas } from '@/lib/canvas-export'
 import type { OutputSize } from '@/types'
 
 const SIZE_OPTIONS: { key: OutputSize; emoji: string }[] = [
@@ -14,7 +16,6 @@ const SIZE_OPTIONS: { key: OutputSize; emoji: string }[] = [
   { key: 'youtube', emoji: '▶️' },
 ]
 
-/** 실제 비율을 시각적으로 표현 — maxDim 기준으로 스케일 */
 function RatioBox({ width, height, active }: { width: number; height: number; active: boolean }) {
   const maxDim = 44
   const ratio = width / height
@@ -33,153 +34,98 @@ function RatioBox({ width, height, active }: { width: number; height: number; ac
 }
 
 export default function ExportPanel() {
-  const { outputSize, setOutputSize, isExporting, setExporting, verse } = useEditorStore()
+  const {
+    outputSize, setOutputSize, isExporting, setExporting,
+    verse, customText, verseLang,
+    backgroundUrl, backgroundFit,
+    style, calendar,
+  } = useEditorStore()
   const [copied, setCopied] = useState(false)
+
+  // CanvasPreview와 동일한 텍스트 계산
+  const displayText = verse
+    ? (verseLang === 'en' && verse.textEn ? verse.textEn : verse.text)
+    : customText
+  const referenceText = verse ? formatVerseRef(verse, verseLang) : ''
 
   // ─── 다운로드 ─────────────────────────────────────────────────────────────
   const handleDownload = async () => {
-    const original = document.getElementById('canvas-preview')
-    if (!original) {
-      alert('캔버스를 찾을 수 없습니다.')
-      return
+    setExporting(true)
+
+    // iOS Safari: window.open은 반드시 async 이전에 동기로 호출해야 팝업 차단 안 됨
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
+    let iosWin: Window | null = null
+    if (isIOS) {
+      iosWin = window.open('', '_blank')
+      if (iosWin) {
+        iosWin.document.write(
+          '<html><body style="background:#111;color:#fff;font-family:sans-serif;' +
+          'text-align:center;padding:40px 20px"><p style="font-size:16px">⏳ 이미지 생성 중...</p></body></html>'
+        )
+      }
     }
 
-    setExporting(true)
-    let clone: HTMLElement | null = null
     try {
-      const { default: html2canvas } = await import('html2canvas')
       const spec = OUTPUT_SIZES[outputSize]
 
-      const previewW = original.offsetWidth || 400
-      const previewH = original.offsetHeight || 400
-
-      // ── 클론 생성 & 문제 CSS 제거 ─────────────────────────────────────────
-      // html2canvas 이슈:
-      //   1) canvas-glow::after에 var(--glow-color) 그라데이션 → NaN addColorStop 오류
-      //   2) overflow:hidden + border-radius 조합 → 렌더링 누락
-      //   onclone은 파싱 이후 실행되므로 해결 불가 → 직접 클론 후 문제 CSS 제거
-      clone = original.cloneNode(true) as HTMLElement
-      clone.id = 'canvas-preview-export'
-      // ⚠️ opacity:0 / visibility:hidden 절대 금지 — html2canvas가 투명/빈 캔버스로 렌더링
-      clone.style.cssText = [
-        'position:fixed', 'top:0', `left:-${previewW + 200}px`,
-        `width:${previewW}px`, `height:${previewH}px`,
-        'z-index:-9999', 'pointer-events:none',
-        'border-radius:0',   // rounded-2xl overflow:hidden + border-radius 조합 버그 방지
-        'overflow:visible',
-      ].join(';')
-      clone.classList.remove('canvas-glow')
-      clone.querySelectorAll<HTMLElement>('[class*="backdrop-blur"]').forEach((el) => {
-        el.style.backdropFilter = 'none'
-        ;(el.style as CSSStyleDeclaration & { webkitBackdropFilter?: string }).webkitBackdropFilter = 'none'
+      // html2canvas 대신 Canvas 2D API로 직접 렌더링 (모바일 호환)
+      const canvas = await renderToCanvas({
+        backgroundUrl,
+        backgroundFit,
+        displayText,
+        referenceText,
+        style,
+        calendar,
+        spec,
       })
 
-      // CSS 변수(var()) → computed 실제값으로 교체
-      // html2canvas는 inline style 내 var() 해석 불가 → 배경 투명 → 검은화면 원인
-      const origEls = [original, ...Array.from(original.querySelectorAll<HTMLElement>('*'))]
-      const cloneEls = [clone,   ...Array.from(clone.querySelectorAll<HTMLElement>('*'))]
-      origEls.forEach((origEl, i) => {
-        const cloneEl = cloneEls[i] as HTMLElement | undefined
-        if (!cloneEl || !(origEl.getAttribute('style') ?? '').includes('var(')) return
-        const computed = window.getComputedStyle(origEl)
-        ;(['backgroundColor', 'background', 'color', 'borderColor'] as const).forEach((p) => {
-          if ((origEl.style as Record<string, string>)[p])
-            ;(cloneEl.style as Record<string, string>)[p] = (computed as unknown as Record<string, string>)[p]
-        })
-      })
-
-      document.body.appendChild(clone)
-
-      // reflow 강제 → 레이아웃 안정화 후 캡처
-      void clone.offsetWidth
-
-      // ── 이미지를 data URL로 변환 → CORS 문제 완전 제거 ────────────────────
-      // Unsplash 등 크로스 오리진 이미지는 allowTaint:false 시 canvas가 taint되어
-      // toDataURL/toBlob 호출이 SecurityError로 실패하므로, 미리 data URL로 변환.
-      const cloneImages = Array.from(clone.querySelectorAll<HTMLImageElement>('img'))
-      await Promise.all(
-        cloneImages.map(async (img) => {
-          const src = img.getAttribute('src') || ''
-          if (!src || src.startsWith('data:')) return
-          try {
-            const res = await fetch(src, { mode: 'cors' })
-            const blob = await res.blob()
-            const dataUrl = await new Promise<string>((resolve, reject) => {
-              const reader = new FileReader()
-              reader.onload = () => resolve(reader.result as string)
-              reader.onerror = reject
-              reader.readAsDataURL(blob)
-            })
-            img.removeAttribute('crossorigin')
-            img.src = dataUrl
-          } catch {
-            // fetch 실패 시 원본 src 유지 (이미지 없이 렌더링)
-          }
-        })
-      )
-
-      // data URL 교체 후 이미지 로드 완료 대기
-      await Promise.all(
-        cloneImages.map(img => {
-          if (img.complete && img.naturalWidth > 0) return Promise.resolve()
-          return new Promise<void>(resolve => {
-            img.onload = () => resolve()
-            img.onerror = () => resolve()
-          })
-        })
-      )
-
-      const scale = previewW > 0 ? Math.min(spec.width / previewW, 8) : 2
-
-      const canvas = await html2canvas(clone, {
-        width: previewW,
-        height: previewH,
-        scale,
-        useCORS: false,     // data URL 변환 후 CORS 불필요
-        allowTaint: true,   // taint 허용 (data URL이므로 보안 문제 없음)
-        backgroundColor: '#000000',
-        logging: false,
-        imageTimeout: 15000,
-      })
-
-      const verseRef = verse
-        ? `${verse.book}${verse.chapter}_${verse.verse}`
-        : 'custom'
+      const verseRef = verse ? `${verse.book}${verse.chapter}_${verse.verse}` : 'custom'
       const filename = `bible-canvas_${verseRef}_${outputSize}_${spec.width}x${spec.height}.png`
 
-      // ── iOS Safari ──────────────────────────────────────────────────────
-      // <a download> 동작 안 함 → PNG blob을 새 탭에서 직접 열어 꾹 눌러 저장
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
       if (isIOS) {
-        const iosBlob = await new Promise<Blob>((resolve, reject) =>
-          canvas.toBlob(b => b ? resolve(b) : reject(new Error('Blob 실패')), 'image/png', 1.0)
-        )
-        const iosUrl = URL.createObjectURL(iosBlob)
-        if (!window.open(iosUrl, '_blank')) location.href = iosUrl
-        return
+        // iOS Safari: blob URL + <a download>가 동작하지 않으므로 새 탭에 이미지 표시
+        // canvas.toDataURL은 동기 → 팝업 차단 없음 (이미 위에서 열었으므로)
+        const dataUrl = canvas.toDataURL('image/png', 1.0)
+        if (iosWin) {
+          iosWin.document.open()
+          iosWin.document.write(
+            '<html><head>' +
+            '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+            '<style>' +
+            'body{margin:0;background:#111;display:flex;flex-direction:column;' +
+            'align-items:center;padding:20px;min-height:100vh;box-sizing:border-box}' +
+            'img{max-width:100%;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.6)}' +
+            'p{color:#fff;font-family:sans-serif;font-size:15px;margin-top:16px;' +
+            'text-align:center;line-height:1.6}' +
+            '</style></head><body>' +
+            `<img src="${dataUrl}" alt="Bible Canvas">` +
+            '<p>이미지를 <strong>꾹 눌러서</strong> 저장하세요 📱</p>' +
+            '</body></html>'
+          )
+          iosWin.document.close()
+        }
+      } else {
+        // 데스크톱 & Android Chrome: blob URL + <a download>
+        const blob = await new Promise<Blob>((resolve, reject) => {
+          canvas.toBlob(
+            b => b ? resolve(b) : reject(new Error('Blob 생성 실패')),
+            'image/png', 1.0
+          )
+        })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
       }
-
-      // ── 데스크톱 & Android Chrome ─────────────────────────────────────
-      // blob URL + <a download> 방식 — 직접 로컬 저장
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob(
-          (b) => (b ? resolve(b) : reject(new Error('Blob 생성 실패'))),
-          'image/png', 1.0
-        )
-      })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
     } catch (err) {
-      console.error('[ExportPanel] PNG 내보내기 실패:', err)
+      console.error('[ExportPanel] 내보내기 실패:', err)
+      if (iosWin && !iosWin.closed) iosWin.close()
       alert('다운로드 중 오류가 발생했습니다. 다시 시도해주세요.')
     } finally {
-      clone?.remove()
       setExporting(false)
     }
   }
@@ -234,12 +180,9 @@ export default function ExportPanel() {
                     : 'border-canvas-border hover:border-canvas-accent/20 bg-canvas-surface/30'
                 }`}
               >
-                {/* 비율 시각화 박스 — 44px 기준 실제 비율 */}
                 <div className="w-12 flex items-center justify-center flex-shrink-0">
                   <RatioBox width={spec.width} height={spec.height} active={active} />
                 </div>
-
-                {/* 레이블 */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs">{emoji}</span>
@@ -254,7 +197,6 @@ export default function ExportPanel() {
                     {spec.width} × {spec.height} • {spec.platform}
                   </p>
                 </div>
-
                 {active && (
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-canvas-accent flex-shrink-0">
                     <polyline points="20 6 9 17 4 12" />
@@ -303,7 +245,7 @@ export default function ExportPanel() {
         </p>
       )}
 
-      {/* ── 링크 공유 (별도) ── */}
+      {/* ── 링크 공유 ── */}
       <div className="flex gap-2">
         <button
           onClick={handleShare}
